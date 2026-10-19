@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# StudyRoom runtime data and backups
+App_Data/
+Backups/
+publish/
