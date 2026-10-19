@@ -1,0 +1,217 @@
+@page
+@model StudyRoom.Pages.Teacher.DisciplinesModel
+@{
+    ViewData["Title"] = "Управление дисциплинами, темами и лекциями";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-book-half text-primary me-2"></i>Учебные дисциплины, темы и лекции</h2>
+        <p class="text-muted mb-0">Формирование структуры курсов, порядка изучения тем и настройка лекций</p>
+    </div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newDisciplineForm">
+        <i class="bi bi-plus-lg me-1"></i>Добавить дисциплину
+    </button>
+</div>
+
+<!-- Форма добавления новой дисциплины -->
+<div class="collapse mb-4" id="newDisciplineForm">
+    <div class="card border-primary shadow-sm">
+        <div class="card-header bg-primary text-white fw-semibold">Новая учебная дисциплина</div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="CreateDiscipline">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Название дисциплины</label>
+                        <input type="text" name="title" class="form-control" required placeholder="Например: Внедрение и поддержка компьютерных систем" />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Краткое описание</label>
+                        <input type="text" name="description" class="form-control" placeholder="Описание целей и содержания курса" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100">Создать</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@foreach (var disc in Model.Disciplines)
+{
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h4 class="mb-0 fw-bold"><i class="bi bi-journal-bookmark me-2 text-info"></i>@disc.Title</h4>
+                <div class="small text-light opacity-75">@disc.Description</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#editDisc-@disc.Id">
+                    <i class="bi bi-pencil"></i> Изменить
+                </button>
+                <button class="btn btn-sm btn-info" type="button" data-bs-toggle="collapse" data-bs-target="#addTopic-@disc.Id">
+                    <i class="bi bi-folder-plus"></i> + Тема
+                </button>
+                <form method="post" asp-page-handler="DeleteDiscipline" onsubmit="return confirm('Удалить дисциплину со всеми темами и лекциями?');">
+                    <input type="hidden" name="id" value="@disc.Id" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Редактирование дисциплины -->
+        <div class="collapse border-bottom bg-light p-3" id="editDisc-@disc.Id">
+            <form method="post" asp-page-handler="UpdateDiscipline" class="row g-2 align-items-end">
+                <input type="hidden" name="id" value="@disc.Id" />
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Название дисциплины</label>
+                    <input type="text" name="title" value="@disc.Title" class="form-control form-control-sm" required />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Описание</label>
+                    <input type="text" name="description" value="@disc.Description" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Сохранить</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Добавление темы -->
+        <div class="collapse border-bottom bg-light p-3" id="addTopic-@disc.Id">
+            <form method="post" asp-page-handler="CreateTopic" class="row g-2 align-items-end">
+                <input type="hidden" name="disciplineId" value="@disc.Id" />
+                <div class="col-md-7">
+                    <label class="form-label small fw-semibold">Название новой темы</label>
+                    <input type="text" name="title" class="form-control form-control-sm" required placeholder="Например: Тестирование программного обеспечения" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Порядковый номер</label>
+                    <input type="number" name="orderIndex" value="@(disc.Topics.Count + 1)" class="form-control form-control-sm" min="1" />
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-success w-100">Добавить тему</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-body">
+            @if (!disc.Topics.Any())
+            {
+                <p class="text-muted small mb-0">В этой дисциплине пока нет тем. Нажмите «+ Тема», чтобы добавить раздел.</p>
+            }
+            @foreach (var topic in disc.Topics)
+            {
+                <div class="border rounded p-3 mb-3 bg-white">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <div>
+                            <span class="badge bg-secondary me-2">Тема #@topic.OrderIndex</span>
+                            <strong class="fs-5">@topic.Title</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-success" type="button" data-bs-toggle="collapse" data-bs-target="#addLecture-@topic.Id">
+                                <i class="bi bi-file-earmark-plus"></i> + Добавить лекцию
+                            </button>
+                            <form method="post" asp-page-handler="DeleteTopic" onsubmit="return confirm('Удалить тему и входящие в неё лекции?');">
+                                <input type="hidden" name="id" value="@topic.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Форма создания новой лекции -->
+                    <div class="collapse mb-3 p-3 bg-light rounded border" id="addLecture-@topic.Id">
+                        <form method="post" asp-page-handler="CreateLecture" class="row g-2 align-items-end">
+                            <input type="hidden" name="topicId" value="@topic.Id" />
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Название лекции</label>
+                                <input type="text" name="title" class="form-control form-control-sm" required placeholder="Лекция 4. ..." />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Краткое описание</label>
+                                <input type="text" name="description" class="form-control form-control-sm" placeholder="Краткая аннотация" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold">Порядок</label>
+                                <input type="number" name="orderIndex" value="@(topic.Lectures.Count + 1)" class="form-control form-control-sm" min="1" />
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-success w-100">Создать и настроить</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Таблица лекций темы -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th style="width: 60px;">№</th>
+                                    <th>Лекция и описание</th>
+                                    <th>Материал (PDF/DOCX)</th>
+                                    <th>Контрольные вопросы</th>
+                                    <th>Тест</th>
+                                    <th>Условия открытия след.</th>
+                                    <th class="text-end">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var lec in topic.Lectures)
+                                {
+                                    var test = lec.Tests.FirstOrDefault();
+                                    <tr>
+                                        <td><span class="badge bg-dark">@lec.OrderIndex</span></td>
+                                        <td>
+                                            <div class="fw-semibold">@lec.Title</div>
+                                            <div class="small text-muted">@lec.Description</div>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(lec.MaterialFilePath))
+                                            {
+                                                <a href="/Materials/View/@lec.Id" target="_blank" class="badge bg-info text-dark text-decoration-none">
+                                                    <i class="bi bi-file-earmark-text me-1"></i>@(lec.MaterialOriginalFileName ?? "Открыть файл")
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border">Нет файла</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">Вопросов: @lec.ControlQuestions.Count</span>
+                                        </td>
+                                        <td>
+                                            @if (test != null)
+                                            {
+                                                <span class="badge bg-success">Порог: @test.PassingPercentage% (@test.MaxAttempts поп.)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Не создан</span>
+                                            }
+                                        </td>
+                                        <td class="small">
+                                            @if (lec.RequireControlQuestions) { <span class="badge bg-light text-dark border">Вопросы</span> }
+                                            @if (lec.WaitForTeacherApproval) { <span class="badge bg-warning text-dark">Проверка преп.</span> }
+                                            @if (lec.RequireTestPass) { <span class="badge bg-light text-dark border">Тест</span> }
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            <a asp-page="/Teacher/LectureEdit" asp-route-id="@lec.Id" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-sliders me-1"></i>Материалы, вопросы и тест
+                                            </a>
+                                            <form method="post" asp-page-handler="DeleteLecture" class="d-inline" onsubmit="return confirm('Удалить лекцию?');">
+                                                <input type="hidden" name="id" value="@lec.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

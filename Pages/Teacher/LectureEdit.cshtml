@@ -1,0 +1,327 @@
+@page
+@model StudyRoom.Pages.Teacher.LectureEditModel
+@{
+    ViewData["Title"] = $"Редактирование: {Model.Lecture.Title}";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Teacher/Index">Панель преподавателя</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Teacher/Disciplines">Дисциплины</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Lecture.Title</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <span class="badge bg-secondary mb-1">@Model.Lecture.Topic.Discipline.Title &rarr; @Model.Lecture.Topic.Title</span>
+        <h2 class="fw-bold mb-0">@Model.Lecture.Title</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Student/Lecture" asp-route-id="@Model.Lecture.Id" class="btn btn-outline-primary">
+            <i class="bi bi-eye me-1"></i>Предпросмотр глазами студента
+        </a>
+        <a asp-page="/Teacher/Disciplines" class="btn btn-outline-secondary">Назад к списку</a>
+    </div>
+</div>
+
+<!-- 1. Основные параметры, условия открытия и загрузка/замена файла материала -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-richtext me-2 text-info"></i>1. Теоретический материал, файл (PDF/DOCX) и условия открытия</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="UpdateLecture" enctype="multipart/form-data">
+            <input type="hidden" name="id" value="@Model.Lecture.Id" />
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-7">
+                    <label class="form-label fw-semibold">Название лекции</label>
+                    <input type="text" name="title" value="@Model.Lecture.Title" class="form-control" required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Порядковый №</label>
+                    <input type="number" name="orderIndex" value="@Model.Lecture.OrderIndex" class="form-control" min="1" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Текущий файл материала</label>
+                    <div class="pt-1">
+                        @if (!string.IsNullOrWhiteSpace(Model.Lecture.MaterialFilePath))
+                        {
+                            <a href="/Materials/View/@Model.Lecture.Id" target="_blank" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>@Model.Lecture.MaterialOriginalFileName
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Файл не загружен</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Краткое описание лекции</label>
+                <input type="text" name="description" value="@Model.Lecture.Description" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Загрузить или заменить файл учебного материала (PDF, DOCX, PPTX, TXT, MD)</label>
+                <input type="file" name="materialFile" class="form-control" accept=".pdf,.docx,.doc,.pptx,.txt,.md,.html" />
+                <div class="form-text">
+                    При выборе нового файла предыдущий файл лекции будет автоматически заменён, а студентам сразу станет доступна актуальная версия. Действие фиксируется в журнале <code>AuditLogs</code>.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Текст лекции (HTML-конспект для чтения непосредственно в браузере)</label>
+                <textarea name="contentHtml" class="form-control font-monospace" rows="7">@Model.Lecture.ContentHtml</textarea>
+            </div>
+
+            <div class="p-3 bg-light rounded border mb-3">
+                <div class="fw-bold mb-2"><i class="bi bi-lock-fill text-warning me-1"></i>Условия открытия следующей лекции после данной:</div>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="requireControlQuestions" value="true" id="reqCq" @(Model.Lecture.RequireControlQuestions ? "checked" : "") />
+                            <label class="form-check-label" for="reqCq">Обязательны ответы на контрольные вопросы</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="waitForTeacherApproval" value="true" id="waitTeach" @(Model.Lecture.WaitForTeacherApproval ? "checked" : "") />
+                            <label class="form-check-label" for="waitTeach">Ждать проверки развёрнутых ответов преподавателем</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="requireTestPass" value="true" id="reqTest" @(Model.Lecture.RequireTestPass ? "checked" : "") />
+                            <label class="form-check-label" for="reqTest">Обязательна сдача итогового теста на проходной %</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save me-1"></i>Сохранить материал и настройки лекции
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Контрольные вопросы к лекции (все 6 типов) -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-question-circle me-2"></i>2. Контрольные вопросы к лекции (@Model.Lecture.ControlQuestions.Count)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th style="width: 50px;">№</th>
+                        <th style="width: 220px;">Тип вопроса</th>
+                        <th>Текст вопроса и варианты</th>
+                        <th>Эталонный ответ / критерий</th>
+                        <th style="width: 80px;">Удалить</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cq in Model.Lecture.ControlQuestions)
+                    {
+                        <tr>
+                            <td>@cq.OrderIndex</td>
+                            <td>
+                                <span class="badge @(cq.QuestionType == QuestionType.ExtendedText ? "bg-warning text-dark" : "bg-info text-dark")">
+                                    @cq.QuestionType.GetQuestionTypeDisplayName()
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">@cq.QuestionText</div>
+                                @if (!string.IsNullOrWhiteSpace(cq.OptionsJson))
+                                {
+                                    <div class="small text-muted mt-1">Варианты / пары: <code>@cq.OptionsJson</code></div>
+                                }
+                            </td>
+                            <td class="small"><code>@(cq.CorrectAnswer ?? "Проверка преподавателем")</code></td>
+                            <td class="text-center">
+                                <form method="post" asp-page-handler="DeleteControlQuestion">
+                                    <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+                                    <input type="hidden" name="questionId" value="@cq.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <h6 class="fw-bold mb-2">Добавить новый контрольный вопрос</h6>
+        <form method="post" asp-page-handler="AddControlQuestion" class="p-3 bg-light rounded border">
+            <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Порядок</label>
+                    <input type="number" name="orderIndex" value="@(Model.Lecture.ControlQuestions.Count + 1)" class="form-control form-control-sm" min="1" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Тип контрольного вопроса</label>
+                    <select name="questionType" class="form-select form-select-sm">
+                        <option value="@QuestionType.ShortText">Краткий текстовый ответ</option>
+                        <option value="@QuestionType.SingleChoice">Выбор одного правильного ответа</option>
+                        <option value="@QuestionType.MultipleChoice">Выбор нескольких правильных ответов</option>
+                        <option value="@QuestionType.Matching">Установление соответствия</option>
+                        <option value="@QuestionType.FillInBlank">Ввод пропущенного слова или термина</option>
+                        <option value="@QuestionType.ExtendedText">Развёрнутый ответ (проверка преподавателем)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Варианты (разделитель <code>|</code>, для соответствия <code>Левое=Правое|...</code>)</label>
+                    <input type="text" name="optionsJson" class="form-control form-control-sm" placeholder="Вариант 1|Вариант 2|Вариант 3" />
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label small fw-semibold">Текст вопроса</label>
+                    <input type="text" name="questionText" class="form-control form-control-sm" required placeholder="Введите формулировку вопроса..." />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Правильный ответ (через <code>;</code>)</label>
+                    <input type="text" name="correctAnswer" class="form-control form-control-sm" placeholder="Эталонный ответ" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-plus-lg me-1"></i>Добавить</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. Настройка итогового теста и тестовых вопросов -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-success text-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-patch-check me-2"></i>3. Итоговый тест к лекции (@Model.CurrentTest.Questions.Count вопросов)</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="UpdateTestSettings" class="p-3 bg-light rounded border mb-4">
+            <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+            <input type="hidden" name="testId" value="@Model.CurrentTest.Id" />
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Название теста</label>
+                    <input type="text" name="title" value="@Model.CurrentTest.Title" class="form-control form-control-sm" required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Проходной балл (%)</label>
+                    <input type="number" name="passingPercentage" value="@Model.CurrentTest.PassingPercentage" class="form-control form-control-sm" min="1" max="100" required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Макс. попыток</label>
+                    <input type="number" name="maxAttempts" value="@Model.CurrentTest.MaxAttempts" class="form-control form-control-sm" min="1" max="50" required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Лимит (мин.)</label>
+                    <input type="number" name="timeLimitMinutes" value="@Model.CurrentTest.TimeLimitMinutes" class="form-control form-control-sm" min="1" max="180" />
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Обновить параметры</button>
+                </div>
+                <div class="col-12 d-flex gap-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="shuffleQuestions" value="true" id="shufQ" @(Model.CurrentTest.ShuffleQuestions ? "checked" : "") />
+                        <label class="form-check-label small" for="shufQ">Перемешивать вопросы и варианты ответов</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="requireRetryOnFail" value="true" id="reqRetry" @(Model.CurrentTest.RequireRetryOnFail ? "checked" : "") />
+                        <label class="form-check-label small" for="reqRetry">Требовать повторное прохождение при результате ниже порога</label>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Список вопросов теста -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th style="width: 50px;">№</th>
+                        <th style="width: 220px;">Тип вопроса</th>
+                        <th>Вопрос и варианты ответов (зелёным выделены верные)</th>
+                        <th style="width: 80px;">Удалить</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tq in Model.CurrentTest.Questions)
+                    {
+                        <tr>
+                            <td>@tq.OrderIndex</td>
+                            <td><span class="badge bg-secondary">@tq.QuestionType.GetQuestionTypeDisplayName()</span></td>
+                            <td>
+                                <div class="fw-semibold mb-1">@tq.QuestionText</div>
+                                <ul class="mb-0 ps-3 small">
+                                    @foreach (var opt in tq.AnswerOptions)
+                                    {
+                                        <li class="@(opt.IsCorrect ? "text-success fw-semibold" : "text-muted")">
+                                            @opt.OptionText
+                                            @if (!string.IsNullOrWhiteSpace(opt.MatchPair))
+                                            {
+                                                <span> &harr; <strong>@opt.MatchPair</strong></span>
+                                            }
+                                            @if (opt.IsCorrect && string.IsNullOrWhiteSpace(opt.MatchPair))
+                                            {
+                                                <i class="bi bi-check-lg ms-1"></i>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </td>
+                            <td class="text-center">
+                                <form method="post" asp-page-handler="DeleteTestQuestion">
+                                    <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+                                    <input type="hidden" name="testQuestionId" value="@tq.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Форма добавления вопроса в тест -->
+        <h6 class="fw-bold mb-2">Добавить вопрос в тест</h6>
+        <form method="post" asp-page-handler="AddTestQuestion" class="p-3 bg-light rounded border">
+            <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+            <input type="hidden" name="testId" value="@Model.CurrentTest.Id" />
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Порядок</label>
+                    <input type="number" name="orderIndex" value="@(Model.CurrentTest.Questions.Count + 1)" class="form-control form-control-sm" min="1" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Тип тестового вопроса</label>
+                    <select name="questionType" class="form-select form-select-sm">
+                        <option value="@QuestionType.SingleChoice">Выбор одного правильного ответа</option>
+                        <option value="@QuestionType.MultipleChoice">Выбор нескольких правильных ответов</option>
+                        <option value="@QuestionType.ShortText">Краткий текстовый ответ</option>
+                        <option value="@QuestionType.FillInBlank">Ввод пропущенного слова или термина</option>
+                        <option value="@QuestionType.Matching">Установление соответствия</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Текст вопроса</label>
+                    <input type="text" name="questionText" class="form-control form-control-sm" required placeholder="Введите вопрос теста..." />
+                </div>
+                <div class="col-md-10">
+                    <label class="form-label small fw-semibold">
+                        Варианты ответов (по одному на строке; пометьте правильные варианты символом <code>*</code> в начале строки; для соответствия используйте <code>Термин=Определение</code>)
+                    </label>
+                    <textarea name="optionsRaw" class="form-control form-control-sm font-monospace" rows="4" required placeholder="*Правильный вариант&#10;Неправильный вариант 1&#10;Неправильный вариант 2"></textarea>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-plus-circle me-1"></i>Добавить в тест</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

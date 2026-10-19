@@ -1,0 +1,245 @@
+@page
+@model StudyRoom.Pages.Teacher.ReportsModel
+@{
+    ViewData["Title"] = "Сводные отчёты по дисциплине и группе";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Отчёты по дисциплине и учебной группе</h2>
+        <p class="text-muted mb-0">Контроль успеваемости, выявление отстающих студентов, ручное открытие лекций и управление попытками</p>
+    </div>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-printer me-1"></i>Печать сводной ведомости
+    </button>
+</div>
+
+<!-- Фильтр по дисциплине и группе -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold small">Учебная дисциплина</label>
+                <select name="DisciplineId" class="form-select">
+                    @foreach (var d in Model.Disciplines)
+                    {
+                        <option value="@d.Id" selected="@(Model.DisciplineId == d.Id)">@d.Title</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small">Учебная группа</label>
+                <select name="GroupId" class="form-select">
+                    <option value="">-- Все учебные группы --</option>
+                    @foreach (var g in Model.Groups)
+                    {
+                        <option value="@g.Id" selected="@(Model.GroupId == g.Id)">@g.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Сформировать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.SelectedDiscipline != null)
+{
+    <!-- 1. Сводная ведомость освоения дисциплины и выявление отстающих -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold">1. Сводная ведомость успеваемости: @Model.SelectedDiscipline.Title</h5>
+            <span class="badge bg-info text-dark">Всего студентов: @Model.StudentRows.Count | Завершили курс: @Model.StudentRows.Count(r => !r.IsLagging)</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th class="ps-3">Студент (ФИО / Логин)</th>
+                            <th>Группа</th>
+                            <th>Изучено лекций</th>
+                            <th>Процент освоения</th>
+                            <th>Средний балл по тестам</th>
+                            <th>Попыток (неудачных)</th>
+                            <th>Последняя активность</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.StudentRows)
+                        {
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-bold">@row.Student.FullName</div>
+                                    <div class="small text-muted">@row.Student.Login</div>
+                                </td>
+                                <td><span class="badge bg-secondary">@row.GroupNames</span></td>
+                                <td>@row.Progress.CompletedLectures из @row.Progress.TotalLectures</td>
+                                <td style="min-width: 160px;">
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar @(row.Progress.CompletionPercentage >= 100 ? "bg-success" : "bg-primary")"
+                                             role="progressbar"
+                                             style="width: @row.Progress.CompletionPercentage.ToString(System.Globalization.CultureInfo.InvariantCulture)%;">
+                                            @row.Progress.CompletionPercentage%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><strong>@row.AverageBestTestScore%</strong></td>
+                                <td>
+                                    @row.TotalAttempts
+                                    @if (row.FailedAttempts > 0)
+                                    {
+                                        <span class="text-danger small">(@row.FailedAttempts неудач.)</span>
+                                    }
+                                </td>
+                                <td class="small text-muted">
+                                    @(row.LastActivity.HasValue ? row.LastActivity.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : "Нет попыток")
+                                </td>
+                                <td>
+                                    @if (!row.IsLagging)
+                                    {
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Курс освоен</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Не завершил тему</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Матрица доступа к лекциям + ручное принудительное открытие лекции преподавателем -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-unlock-fill me-2"></i>2. Управление доступом к лекциям (ручное открытие и добавление попыток)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th class="ps-3">Студент</th>
+                            @foreach (var lec in Model.OrderedLectures)
+                            {
+                                <th>
+                                    <div>Лекция #@lec.OrderIndex</div>
+                                    <div class="fw-normal text-muted">@lec.Title</div>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.StudentRows)
+                        {
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-bold">@row.Student.FullName</div>
+                                    <div class="small text-muted">@row.GroupNames</div>
+                                </td>
+                                @foreach (var lec in Model.OrderedLectures)
+                                {
+                                    var status = row.Progress.LectureStatuses.GetValueOrDefault(lec.Id, LectureStatus.Locked);
+                                    var isManual = row.Progress.LectureUnlockedFlags.GetValueOrDefault(lec.Id, false);
+                                    <td>
+                                        <div class="mb-2">
+                                            <span class="badge @status.GetBadgeClass()">@status.GetStatusDisplayName()</span>
+                                            @if (isManual)
+                                            {
+                                                <span class="badge bg-info text-dark" title="Открыто вручную преподавателем">Ручной доступ</span>
+                                            }
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @if (status == LectureStatus.Locked || !isManual)
+                                            {
+                                                <form method="post" asp-page-handler="ManualUnlock">
+                                                    <input type="hidden" name="studentId" value="@row.Student.Id" />
+                                                    <input type="hidden" name="lectureId" value="@lec.Id" />
+                                                    <input type="hidden" name="disciplineId" value="@Model.DisciplineId" />
+                                                    <input type="hidden" name="groupId" value="@Model.GroupId" />
+                                                    <button type="submit" class="btn btn-xs btn-sm btn-outline-primary py-0 px-2" title="Принудительно открыть лекцию этому студенту">
+                                                        <i class="bi bi-unlock"></i> Открыть вручную
+                                                    </button>
+                                                </form>
+                                            }
+                                            <form method="post" asp-page-handler="GrantExtraAttempts">
+                                                <input type="hidden" name="studentId" value="@row.Student.Id" />
+                                                <input type="hidden" name="lectureId" value="@lec.Id" />
+                                                <input type="hidden" name="disciplineId" value="@Model.DisciplineId" />
+                                                <input type="hidden" name="groupId" value="@Model.GroupId" />
+                                                <button type="submit" class="btn btn-xs btn-sm btn-outline-secondary py-0 px-2" title="Предоставить +3 попытки тестирования">
+                                                    +3 поп.
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. История попыток тестирования -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history text-secondary me-2"></i>3. Журнал прохождения тестов студентами</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th class="ps-3">Дата и время</th>
+                            <th>Студент</th>
+                            <th>Лекция / Тест</th>
+                            <th>Правильных ответов</th>
+                            <th>Результат (%)</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.RecentAttempts.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Попыток тестирования пока не зарегистрировано.</td>
+                            </tr>
+                        }
+                        @foreach (var att in Model.RecentAttempts)
+                        {
+                            <tr>
+                                <td class="ps-3 small text-muted">@att.AttemptDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                <td class="fw-semibold">@att.Student.FullName</td>
+                                <td>@att.Test.Lecture.Title</td>
+                                <td>@att.CorrectCount из @att.TotalQuestions</td>
+                                <td><strong>@att.ScorePercentage%</strong> (порог @att.Test.PassingPercentage%)</td>
+                                <td>
+                                    @if (att.Status == TestAttemptStatus.Passed)
+                                    {
+                                        <span class="badge bg-success">Сдан</span>
+                                    }
+                                    else if (att.Status == TestAttemptStatus.Expired)
+                                    {
+                                        <span class="badge bg-warning text-dark">Время истекло</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Не сдан</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

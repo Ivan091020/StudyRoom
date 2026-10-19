@@ -1,0 +1,132 @@
+@page
+@model StudyRoom.Pages.Teacher.IndexModel
+@{
+    ViewData["Title"] = "Панель преподавателя";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-easel2-fill text-warning me-2"></i>Панель управления преподавателя</h2>
+        <p class="text-muted mb-0">Управление учебными дисциплинами, материалами, контрольными заданиями, тестами и прогрессом студентов</p>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-md-0">
+        <a asp-page="/Teacher/Disciplines" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Управление курсами
+        </a>
+        <a asp-page="/Teacher/Reports" class="btn btn-outline-dark">
+            <i class="bi bi-table me-1"></i>Ведомость и открытие лекций
+        </a>
+    </div>
+</div>
+
+<!-- Карточки сводной статистики -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Дисциплин / Тем / Лекций</div>
+                <div class="fs-3 fw-bold text-primary">@Model.DisciplineCount / @Model.TopicCount / @Model.LectureCount</div>
+                <a asp-page="/Teacher/Disciplines" class="small text-decoration-none">Перейти к структуре &rarr;</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Студентов / Групп</div>
+                <div class="fs-3 fw-bold text-success">@Model.StudentCount / @Model.GroupCount</div>
+                <a asp-page="/Teacher/Users" class="small text-decoration-none">Управление группами &rarr;</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Ожидают проверки ответов</div>
+                <div class="fs-3 fw-bold @(Model.PendingReviewCount > 0 ? "text-danger" : "text-secondary")">@Model.PendingReviewCount</div>
+                <a asp-page="/Teacher/Reviews" class="small text-decoration-none">Проверить ответы &rarr;</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Попыток тестирования</div>
+                <div class="fs-3 fw-bold text-info">@Model.TotalAttemptsCount</div>
+                <a asp-page="/Teacher/Reports" class="small text-decoration-none">Смотреть отчёты &rarr;</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Очередь проверки развёрнутых ответов -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-chat-left-quote text-warning me-2"></i>Ответы, ожидающие проверки</h5>
+                <a asp-page="/Teacher/Reviews" class="btn btn-sm btn-outline-primary">Все ответы</a>
+            </div>
+            <div class="card-body">
+                @if (!Model.PendingAnswers.Any())
+                {
+                    <div class="text-muted small py-3 text-center">
+                        <i class="bi bi-check2-all fs-4 d-block mb-1 text-success"></i>
+                        Нет непроверенных развёрнутых ответов.
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var ans in Model.PendingAnswers)
+                        {
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@ans.Student.FullName</strong>
+                                    <span class="text-muted small">@ans.SubmittedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                                <div class="small text-primary mb-1">@ans.Question.Lecture.Title</div>
+                                <div class="small text-muted mb-1">Вопрос: @ans.Question.QuestionText</div>
+                                <div class="p-2 bg-light rounded small mb-2">@ans.AnswerText</div>
+                                <a asp-page="/Teacher/Reviews" class="btn btn-sm btn-success">Перейти к проверке</a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Журнал событий (AuditLogs) -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-journal-code text-info me-2"></i>Журнал событий (AuditLogs)</h5>
+                <span class="badge bg-secondary">Последние 10 записей</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Дата</th>
+                                <th>Тип</th>
+                                <th>Описание действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in Model.RecentAuditLogs)
+                            {
+                                <tr>
+                                    <td class="ps-3 small text-nowrap text-muted">@log.CreatedAt.ToLocalTime().ToString("dd.MM HH:mm")</td>
+                                    <td><span class="badge bg-light text-dark border">@log.ActionType</span></td>
+                                    <td class="small">@log.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,92 @@
+@page
+@model StudyRoom.Pages.Teacher.ReviewsModel
+@{
+    ViewData["Title"] = "Проверка контрольных ответов";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-check2-square text-success me-2"></i>Проверка ответов студентов</h2>
+        <p class="text-muted mb-0">Экспертная проверка развёрнутых ответов и корректировка результатов контрольных заданий</p>
+    </div>
+    <div class="btn-group">
+        <a asp-page="/Teacher/Reviews" asp-route-ShowAll="false" class="btn @(!Model.ShowAll ? "btn-primary" : "btn-outline-primary")">
+            Развёрнутые и ожидающие проверки
+        </a>
+        <a asp-page="/Teacher/Reviews" asp-route-ShowAll="true" class="btn @(Model.ShowAll ? "btn-primary" : "btn-outline-primary")">
+            Все ответы студентов
+        </a>
+    </div>
+</div>
+
+@if (!Model.Answers.Any())
+{
+    <div class="alert alert-info shadow-sm">
+        <i class="bi bi-info-circle me-2"></i>Нет ответов для отображения по выбранному фильтру.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var ans in Model.Answers)
+        {
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center py-2">
+                        <div>
+                            <strong>@ans.Student.FullName</strong> <span class="text-muted small">(@ans.Student.Login)</span>
+                            <span class="mx-2 text-muted">|</span>
+                            <span class="text-primary fw-semibold">@ans.Question.Lecture.Title</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            @if (ans.IsApproved == null)
+                            {
+                                <span class="badge bg-warning text-dark">Ожидает проверки преподавателем</span>
+                            }
+                            else if (ans.IsApproved == true)
+                            {
+                                <span class="badge bg-success">Зачтено @(ans.CheckedByTeacher ? "(преподавателем)" : "(авто)")</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Отклонено / Неверно</span>
+                            }
+                            <span class="small text-muted">@ans.SubmittedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <span class="badge bg-secondary me-1">@ans.Question.QuestionType.GetQuestionTypeDisplayName()</span>
+                            <strong>Вопрос:</strong> @ans.Question.QuestionText
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(ans.Question.CorrectAnswer))
+                        {
+                            <div class="small text-muted mb-2">
+                                <strong>Эталон / критерии проверки:</strong> <code>@ans.Question.CorrectAnswer</code>
+                            </div>
+                        }
+                        <div class="p-3 bg-light rounded border mb-3">
+                            <div class="small text-muted mb-1">Ответ студента:</div>
+                            <div class="fw-semibold">@ans.AnswerText</div>
+                        </div>
+
+                        <form method="post" asp-page-handler="ReviewAnswer" class="row g-2 align-items-center">
+                            <input type="hidden" name="answerId" value="@ans.Id" />
+                            <div class="col-md-7">
+                                <input type="text" name="teacherComment" value="@ans.TeacherComment" class="form-control form-control-sm" placeholder="Комментарий преподавателя к ответу (необязательно)" />
+                            </div>
+                            <div class="col-md-5 d-flex gap-2 justify-content-md-end">
+                                <button type="submit" name="approve" value="true" class="btn btn-sm btn-success">
+                                    <i class="bi bi-check-lg me-1"></i>Зачесть ответ
+                                </button>
+                                <button type="submit" name="approve" value="false" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-lg me-1"></i>Отклонить (на доработку)
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

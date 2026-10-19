@@ -1,0 +1,151 @@
+@page
+@model StudyRoom.Pages.Teacher.UsersModel
+@{
+    ViewData["Title"] = "Пользователи и учебные группы";
+}
+
+<h2 class="fw-bold mb-4"><i class="bi bi-people-fill text-primary me-2"></i>Управление учётными записями и учебными группами</h2>
+
+<div class="row g-4 mb-4">
+    <!-- Добавление пользователя -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-person-plus me-2"></i>Создать учётную запись</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreateUser" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">ФИО полностью</label>
+                        <input type="text" name="fullName" class="form-control form-control-sm" required placeholder="Кузнецов Дмитрий Олегович" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Логин</label>
+                        <input type="text" name="login" class="form-control form-control-sm" required placeholder="student3" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Пароль</label>
+                        <input type="password" name="password" class="form-control form-control-sm" required minlength="6" placeholder="Не менее 6 символов" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Роль</label>
+                        <select name="role" class="form-select form-select-sm">
+                            <option value="@UserRole.Student">Студент</option>
+                            <option value="@UserRole.Teacher">Преподаватель</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Учебная группа (для студента)</label>
+                        <select name="groupId" class="form-select form-select-sm">
+                            <option value="">-- Без группы --</option>
+                            @foreach (var g in Model.Groups)
+                            {
+                                <option value="@g.Id">@g.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check2 me-1"></i>Создать пользователя (с хешированием пароля)</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Учебные группы -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-secondary text-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-collection me-2"></i>Учебные группы (@Model.Groups.Count)</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreateGroup" class="row g-2 mb-3">
+                    <div class="col-5">
+                        <input type="text" name="name" class="form-control form-control-sm" required placeholder="Код группы (ИСП-43)" />
+                    </div>
+                    <div class="col-5">
+                        <input type="text" name="description" class="form-control form-control-sm" placeholder="Описание" />
+                    </div>
+                    <div class="col-2">
+                        <button type="submit" class="btn btn-sm btn-success w-100">+</button>
+                    </div>
+                </form>
+
+                <ul class="list-group list-group-flush small">
+                    @foreach (var g in Model.Groups)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>@g.Name</strong>
+                                <div class="text-muted">@g.Description</div>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">Студентов: @g.GroupMemberships.Count</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблица всех пользователей -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold">Список зарегистрированных пользователей (@Model.Users.Count)</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th class="ps-3">ID</th>
+                        <th>ФИО</th>
+                        <th>Логин</th>
+                        <th>Роль</th>
+                        <th>Учебная группа</th>
+                        <th>Хеш пароля (Identity PasswordHasher)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.Users)
+                    {
+                        var currentGroupId = u.GroupMemberships.FirstOrDefault()?.StudentGroupId ?? 0;
+                        <tr>
+                            <td class="ps-3">@u.Id</td>
+                            <td class="fw-semibold">@u.FullName</td>
+                            <td><code>@u.Login</code></td>
+                            <td>
+                                <span class="badge @(u.Role == UserRole.Teacher ? "bg-warning text-dark" : "bg-info text-dark")">
+                                    @(u.Role == UserRole.Teacher ? "Преподаватель" : "Студент")
+                                </span>
+                            </td>
+                            <td>
+                                @if (u.Role == UserRole.Student)
+                                {
+                                    <form method="post" asp-page-handler="AssignGroup" class="d-flex gap-1" style="max-width: 240px;">
+                                        <input type="hidden" name="studentId" value="@u.Id" />
+                                        <select name="groupId" class="form-select form-select-sm">
+                                            <option value="0">-- Без группы --</option>
+                                            @foreach (var g in Model.Groups)
+                                            {
+                                                <option value="@g.Id" selected="@(currentGroupId == g.Id)">@g.Name</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">ОК</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                            <td>
+                                <code class="small text-muted">@(u.PasswordHash.Length > 28 ? u.PasswordHash[..28] + "..." : u.PasswordHash)</code>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
