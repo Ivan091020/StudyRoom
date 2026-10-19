@@ -1,0 +1,50 @@
+@page
+@model StudyRoom.Pages.Account.AccessDeniedModel
+@{
+    ViewData["Title"] = "Доступ запрещён (403 Forbidden)";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-7">
+        <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger text-white py-3">
+                <h4 class="mb-0"><i class="bi bi-shield-lock-fill me-2"></i>Доступ запрещён (HTTP 403 Forbidden)</h4>
+            </div>
+            <div class="card-body p-4">
+                @if (!string.IsNullOrWhiteSpace(Model.Reason))
+                {
+                    <div class="alert alert-warning border-warning">
+                        <strong>Причина отказа сервера:</strong><br />
+                        @Model.Reason
+                    </div>
+                }
+                else
+                {
+                    <p class="lead mb-3">
+                        У вашей учётной записи недостаточно прав для просмотра запрашиваемого ресурса либо предыдущая учебная лекция ещё не завершена.
+                    </p>
+                }
+
+                <p class="text-muted mb-4">
+                    Система контролирует права ролей (<code>Teacher</code> / <code>Student</code>) и последовательность изучения лекций непосредственно на стороне сервера. Прямой переход по URL-адресу к заблокированным материалам или административным разделам отклонён.
+                </p>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    @if (User.IsInRole("Teacher"))
+                    {
+                        <a asp-page="/Teacher/Index" class="btn btn-primary">Перейти в панель преподавателя</a>
+                    }
+                    else if (User.IsInRole("Student"))
+                    {
+                        <a asp-page="/Student/Index" class="btn btn-primary">Вернуться в личный кабинет студента</a>
+                    }
+                    else
+                    {
+                        <a asp-page="/Account/Login" class="btn btn-primary">Войти в систему</a>
+                    }
+                    <a asp-page="/Index" class="btn btn-outline-secondary">На главную</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

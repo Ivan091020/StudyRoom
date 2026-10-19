@@ -1,10 +1,136 @@
-﻿@page
+@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Главная";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="p-4 p-md-5 mb-4 rounded-3 bg-white shadow-sm border">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <span class="badge bg-primary mb-2 px-3 py-2">Информационный образовательный ресурс</span>
+            <h1 class="display-6 fw-bold mb-3">Электронный учебный кабинет преподавателя и студента</h1>
+            <p class="lead text-secondary mb-4">
+                Веб-приложение для размещения теоретических материалов по учебным дисциплинам, автоматизированной и экспертной проверки контрольных вопросов, проведения тестирования с ограничением времени и строгого последовательного открытия новых лекций по мере освоения курса.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    @if (User.IsTeacher())
+                    {
+                        <a asp-page="/Teacher/Index" class="btn btn-warning btn-lg fw-semibold">
+                            <i class="bi bi-easel2-fill me-2"></i>Открыть панель преподавателя
+                        </a>
+                        <a asp-page="/Teacher/Reports" class="btn btn-outline-dark btn-lg">
+                            <i class="bi bi-bar-chart-line me-2"></i>Сводные отчёты по группам
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-page="/Student/Index" class="btn btn-primary btn-lg fw-semibold">
+                            <i class="bi bi-mortarboard-fill me-2"></i>Перейти к обучению
+                        </a>
+                    }
+                }
+                else
+                {
+                    <a asp-page="/Account/Login" class="btn btn-primary btn-lg px-4">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Войти в кабинет
+                    </a>
+                    <a asp-page="/Account/Register" class="btn btn-outline-success btn-lg px-4">
+                        <i class="bi bi-person-plus me-2"></i>Регистрация студента
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="col-lg-4 mt-4 mt-lg-0">
+            <div class="row g-3 text-center">
+                <div class="col-6">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="fs-2 fw-bold text-primary">@Model.Disciplines.Count</div>
+                        <div class="small text-muted">Дисциплин</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="fs-2 fw-bold text-success">@Model.TotalLectures</div>
+                        <div class="small text-muted">Лекций</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="fs-2 fw-bold text-info">@Model.TotalTests</div>
+                        <div class="small text-muted">Тестов</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="fs-2 fw-bold text-secondary">@Model.TotalStudents</div>
+                        <div class="small text-muted">Студентов</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title fw-bold"><i class="bi bi-shield-check text-primary me-2"></i>Последовательное освоение</h5>
+                <p class="card-text text-muted small mb-0">
+                    Лекция <em>N+1</em> открывается только после ответов на контрольные вопросы (включая проверку преподавателем развёрнутых ответов) и сдачи теста по лекции <em>N</em> на проходной балл. Сервер блокирует обход по прямой ссылке (HTTP 403).
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title fw-bold"><i class="bi bi-ui-checks-grid text-success me-2"></i>6 типов заданий и таймер</h5>
+                <p class="card-text text-muted small mb-0">
+                    Поддерживаются краткий ответ, одиночный и множественный выбор, соответствие, ввод пропущенного термина и развёрнутый ответ. В тестах работает перемешивание вопросов, учёт попыток и таймер.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title fw-bold"><i class="bi bi-journal-text text-warning me-2"></i>Контроль и журнал аудита</h5>
+                <p class="card-text text-muted small mb-0">
+                    Преподаватель формирует ведомости по учебным группам, выявляет отстающих студентов, проверяет развёрнутые ответы и при необходимости вручную открывает лекции с фиксацией в <code>AuditLogs</code>.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h4 class="fw-bold mb-3"><i class="bi bi-collection me-2"></i>Учебные дисциплины в системе</h4>
+<div class="row g-3">
+    @foreach (var disc in Model.Disciplines)
+    {
+        var lectureCount = disc.Topics.SelectMany(t => t.Lectures).Count();
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold text-dark">@disc.Title</h5>
+                    <p class="text-muted small mb-3">@disc.Description</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-secondary">Тем: @disc.Topics.Count | Лекций: @lectureCount</span>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a asp-page="/Student/Discipline" asp-route-id="@disc.Id" class="btn btn-sm btn-outline-primary">
+                                Открыть курс <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-page="/Account/Login" class="btn btn-sm btn-outline-primary">Войти для изучения</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>

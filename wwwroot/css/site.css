@@ -1,31 +1,28 @@
 html {
-  font-size: 14px;
+  font-size: 15px;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+.lecture-content h4 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #1e293b;
+  font-weight: 600;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.lecture-content p, .lecture-content li {
+  line-height: 1.65;
 }
 
-html {
-  position: relative;
-  min-height: 100%;
+.card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-body {
-  margin-bottom: 60px;
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
-}
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+.locked-row {
+  opacity: 0.72;
+  background-color: #f8f9fa;
 }
