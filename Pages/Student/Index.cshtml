@@ -1,0 +1,163 @@
+@page
+@model StudyRoom.Pages.Student.IndexModel
+@{
+    ViewData["Title"] = "Личный кабинет студента";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-mortarboard-fill text-primary me-2"></i>Личный кабинет студента</h2>
+        <p class="text-muted mb-0">
+            Студент: <strong>@Model.CurrentUser?.FullName</strong> (@Model.CurrentUser?.Login) |
+            Учебная группа: <span class="badge bg-secondary">@Model.GroupNames</span>
+        </p>
+    </div>
+</div>
+
+<!-- 1. Доступные учебные дисциплины и общий процент освоения -->
+<h4 class="fw-bold mb-3"><i class="bi bi-journals me-2"></i>Доступные учебные дисциплины</h4>
+<div class="row g-4 mb-5">
+    @foreach (var item in Model.DisciplineCards)
+    {
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100 card-hover">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="fw-bold mb-0">@item.Discipline.Title</h5>
+                        <span class="badge @(item.Progress.CompletionPercentage >= 100 ? "bg-success" : "bg-primary")">
+                            Освоено: @item.Progress.CompletionPercentage%
+                        </span>
+                    </div>
+                    <p class="text-muted small mb-3">@item.Discipline.Description</p>
+
+                    <div class="mb-3 mt-auto">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Тем: @item.TopicCount | Изучено лекций: @item.Progress.CompletedLectures из @item.Progress.TotalLectures</span>
+                            <strong>@item.Progress.CompletionPercentage%</strong>
+                        </div>
+                        <div class="progress" style="height: 12px;">
+                            <div class="progress-bar @(item.Progress.CompletionPercentage >= 100 ? "bg-success" : "bg-primary")"
+                                 role="progressbar"
+                                 style="width: @item.Progress.CompletionPercentage.ToString(System.Globalization.CultureInfo.InvariantCulture)%;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <a asp-page="/Student/Discipline" asp-route-id="@item.Discipline.Id" class="btn btn-primary">
+                            <i class="bi bi-folder2-open me-1"></i>Открыть структуру тем и лекций
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-4">
+    <!-- 2. История прохождения тестов студентом -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-card-checklist text-success me-2"></i>Мои результаты тестирования</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th class="ps-3">Дата</th>
+                                <th>Лекция / Тест</th>
+                                <th>Баллы</th>
+                                <th>Процент</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.RecentAttempts.Any())
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">Вы ещё не проходили тестирование.</td>
+                                </tr>
+                            }
+                            @foreach (var att in Model.RecentAttempts)
+                            {
+                                <tr>
+                                    <td class="ps-3 small text-muted text-nowrap">@att.AttemptDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td>
+                                        <div class="fw-semibold small">@att.Test.Lecture.Title</div>
+                                        <div class="text-muted small">@att.Test.Title</div>
+                                    </td>
+                                    <td>@att.CorrectCount / @att.TotalQuestions</td>
+                                    <td>
+                                        <strong>@att.ScorePercentage%</strong>
+                                        <span class="text-muted small">(порог @att.Test.PassingPercentage%)</span>
+                                    </td>
+                                    <td>
+                                        @if (att.Status == TestAttemptStatus.Passed)
+                                        {
+                                            <span class="badge bg-success">Сдан</span>
+                                        }
+                                        else if (att.Status == TestAttemptStatus.Expired)
+                                        {
+                                            <span class="badge bg-warning text-dark">Время истекло</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Не сдан</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Результаты контрольных вопросов -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-question-diamond text-info me-2"></i>Ответы на контрольные вопросы</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @if (!Model.RecentAnswers.Any())
+                    {
+                        <div class="p-4 text-center text-muted">Вы ещё не отправляли ответы на контрольные вопросы.</div>
+                    }
+                    @foreach (var ans in Model.RecentAnswers)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-semibold text-primary">@ans.Question.Lecture.Title</span>
+                                @if (ans.IsApproved == true)
+                                {
+                                    <span class="badge bg-success">Зачтено</span>
+                                }
+                                else if (ans.IsApproved == null)
+                                {
+                                    <span class="badge bg-warning text-dark">На проверке у преподавателя</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Неверно</span>
+                                }
+                            </div>
+                            <div class="small text-muted mb-1">@ans.Question.QuestionText</div>
+                            <div class="small bg-light p-2 rounded border">Мой ответ: <strong>@ans.AnswerText</strong></div>
+                            @if (!string.IsNullOrWhiteSpace(ans.TeacherComment))
+                            {
+                                <div class="small text-success mt-1">
+                                    <i class="bi bi-chat-dots me-1"></i>Комментарий преподавателя: @ans.TeacherComment
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

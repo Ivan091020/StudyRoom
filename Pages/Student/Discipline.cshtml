@@ -1,0 +1,141 @@
+@page
+@model StudyRoom.Pages.Student.DisciplineModel
+@{
+    ViewData["Title"] = Model.Discipline.Title;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Student/Index">Личный кабинет</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Discipline.Title</li>
+    </ol>
+</nav>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-2">@Model.Discipline.Title</h2>
+                <p class="text-muted mb-0">@Model.Discipline.Description</p>
+            </div>
+            <div class="col-lg-4 mt-3 mt-lg-0">
+                <div class="p-3 bg-light rounded border">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Прогресс освоения курса:</span>
+                        <strong>@Model.Progress.CompletedLectures из @Model.Progress.TotalLectures лекций (@Model.Progress.CompletionPercentage%)</strong>
+                    </div>
+                    <div class="progress" style="height: 16px;">
+                        <div class="progress-bar @(Model.Progress.CompletionPercentage >= 100 ? "bg-success" : "bg-primary")"
+                             role="progressbar"
+                             style="width: @Model.Progress.CompletionPercentage.ToString(System.Globalization.CultureInfo.InvariantCulture)%;">
+                            @Model.Progress.CompletionPercentage%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@foreach (var topic in Model.Discipline.Topics)
+{
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white py-3">
+            <h5 class="mb-0 fw-bold">
+                <span class="badge bg-info text-dark me-2">Тема @topic.OrderIndex</span>
+                @topic.Title
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th class="ps-3" style="width: 60px;">№</th>
+                            <th>Лекция</th>
+                            <th>Статус</th>
+                            <th>Контрольные вопросы</th>
+                            <th>Итоговый тест</th>
+                            <th class="text-end pe-3">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lec in topic.Lectures)
+                        {
+                            var status = Model.Progress.LectureStatuses.GetValueOrDefault(lec.Id, LectureStatus.Locked);
+                            var isManual = Model.Progress.LectureUnlockedFlags.GetValueOrDefault(lec.Id, false);
+                            var isLocked = status == LectureStatus.Locked && !User.IsTeacher();
+                            var approvedQ = Model.AnsweredQuestionsByLecture.GetValueOrDefault(lec.Id, 0);
+                            var bestScore = Model.BestTestScoreByLecture.GetValueOrDefault(lec.Id, null);
+                            var attCount = Model.AttemptsCountByLecture.GetValueOrDefault(lec.Id, 0);
+                            var test = lec.Tests.FirstOrDefault();
+
+                            <tr class="@(isLocked ? "locked-row" : "")">
+                                <td class="ps-3"><span class="badge bg-secondary">@lec.OrderIndex</span></td>
+                                <td>
+                                    <div class="fw-bold">
+                                        @if (isLocked)
+                                        {
+                                            <i class="bi bi-lock-fill text-danger me-1"></i>
+                                        }
+                                        else if (status == LectureStatus.Completed)
+                                        {
+                                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-unlock-fill text-primary me-1"></i>
+                                        }
+                                        @lec.Title
+                                    </div>
+                                    <div class="small text-muted">@lec.Description</div>
+                                </td>
+                                <td>
+                                    <span class="badge @status.GetBadgeClass()">@status.GetStatusDisplayName()</span>
+                                    @if (isManual)
+                                    {
+                                        <span class="badge bg-info text-dark">Открыто преподавателем</span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    Зачтено: <strong>@approvedQ / @lec.ControlQuestions.Count</strong>
+                                </td>
+                                <td class="small">
+                                    @if (test != null)
+                                    {
+                                        if (bestScore.HasValue)
+                                        {
+                                            <div>Лучший балл: <strong class="@(bestScore >= test.PassingPercentage ? "text-success" : "text-danger")">@bestScore%</strong> (порог @test.PassingPercentage%)</div>
+                                            <div class="text-muted">Попыток: @attCount / @test.MaxAttempts</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Не пройден (порог @test.PassingPercentage%)</span>
+                                        }
+                                    }
+                                </td>
+                                <td class="text-end pe-3 text-nowrap">
+                                    @if (!isLocked)
+                                    {
+                                        <a asp-page="/Student/Lecture" asp-route-id="@lec.Id" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-book me-1"></i>Изучить лекцию
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-secondary border me-1">
+                                            <i class="bi bi-lock me-1"></i>Завершите предыдущую лекцию
+                                        </span>
+                                        <a asp-page="/Student/Lecture" asp-route-id="@lec.Id" class="btn btn-sm btn-outline-secondary" title="Проверить серверную блокировку (HTTP 403)">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

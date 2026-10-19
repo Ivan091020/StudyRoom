@@ -1,0 +1,357 @@
+@page
+@model StudyRoom.Pages.Student.LectureModel
+@{
+    ViewData["Title"] = Model.Lecture.Title;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Student/Index">Кабинет студента</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Student/Discipline" asp-route-id="@Model.Lecture.Topic.DisciplineId">@Model.Lecture.Topic.Discipline.Title</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.Lecture.Title</li>
+    </ol>
+</nav>
+
+<!-- Заголовок лекции и статус -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+            <div>
+                <span class="badge bg-secondary me-1">Тема @Model.Lecture.Topic.OrderIndex: @Model.Lecture.Topic.Title</span>
+                <span class="badge @Model.CurrentStatus.GetBadgeClass()">Статус: @Model.CurrentStatus.GetStatusDisplayName()</span>
+            </div>
+            @if (User.IsTeacher())
+            {
+                <a asp-page="/Teacher/LectureEdit" asp-route-id="@Model.Lecture.Id" class="btn btn-sm btn-warning">
+                    <i class="bi bi-pencil-square me-1"></i>Редактировать в панели преподавателя
+                </a>
+            }
+        </div>
+        <h2 class="fw-bold mb-2">@Model.Lecture.Title</h2>
+        <p class="text-muted mb-0">@Model.Lecture.Description</p>
+    </div>
+</div>
+
+<!-- 1. Теоретический материал и прикреплённый файл -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-book-half me-2 text-info"></i>1. Теоретический материал лекции</h5>
+        @if (!string.IsNullOrWhiteSpace(Model.Lecture.MaterialFilePath))
+        {
+            <div class="d-flex gap-2">
+                <a href="/Materials/View/@Model.Lecture.Id" target="_blank" class="btn btn-sm btn-info fw-semibold">
+                    <i class="bi bi-eye me-1"></i>Открыть документ в браузере (@Model.Lecture.MaterialOriginalFileName)
+                </a>
+                <a href="/Materials/Download/@Model.Lecture.Id" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-download me-1"></i>Скачать файл
+                </a>
+            </div>
+        }
+    </div>
+    <div class="card-body p-4 lecture-content">
+        @if (!string.IsNullOrWhiteSpace(Model.Lecture.ContentHtml))
+        {
+            @Html.Raw(Model.Lecture.ContentHtml)
+        }
+        else
+        {
+            <p class="text-muted">Текстовый конспект не заполнен. Откройте прикреплённый файл лекции выше.</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Lecture.MaterialFilePath) &&
+             Model.Lecture.MaterialFilePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            <hr class="my-4" />
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong class="small text-secondary"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Встроенный просмотр PDF-материала лекции:</strong>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#pdfPreviewCollapse">
+                    Показать / скрыть PDF-плеер
+                </button>
+            </div>
+            <div class="collapse show" id="pdfPreviewCollapse">
+                <iframe src="/Materials/View/@Model.Lecture.Id" class="w-100 rounded border" style="height: 360px;" title="PDF материал лекции"></iframe>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- 2. Контрольные вопросы к лекции -->
+<div class="card shadow-sm border-0 mb-4" id="control-questions">
+    <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-question-circle-fill me-2"></i>2. Контрольные вопросы к лекции (@Model.Lecture.ControlQuestions.Count)</h5>
+        @if (Model.Lecture.RequireControlQuestions)
+        {
+            <span class="badge bg-light text-dark">Обязательно для открытия следующей лекции</span>
+        }
+    </div>
+    <div class="card-body p-4">
+        @if (!Model.Lecture.ControlQuestions.Any())
+        {
+            <p class="text-muted mb-0">К данной лекции контрольные вопросы не предусмотрены.</p>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="SubmitControlAnswers" asp-route-id="@Model.Lecture.Id">
+                @foreach (var q in Model.Lecture.ControlQuestions)
+                {
+                    Model.StudentAnswersByQuestion.TryGetValue(q.Id, out var prevAns);
+                    var borderClass = prevAns == null ? "border-secondary-subtle"
+                        : prevAns.IsApproved == true ? "border-success bg-success-subtle bg-opacity-10"
+                        : prevAns.IsApproved == null ? "border-warning bg-warning-subtle bg-opacity-10"
+                        : "border-danger bg-danger-subtle bg-opacity-10";
+
+                    <div class="p-3 rounded border mb-3 @borderClass">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="badge bg-dark me-1">Вопрос @q.OrderIndex</span>
+                                <span class="badge bg-secondary">@q.QuestionType.GetQuestionTypeDisplayName()</span>
+                            </div>
+                            @if (prevAns != null)
+                            {
+                                @if (prevAns.IsApproved == true)
+                                {
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Ответ зачтён</span>
+                                }
+                                else if (prevAns.IsApproved == null)
+                                {
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Ожидает проверки преподавателем</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Ответ неверный — попробуйте ещё раз</span>
+                                }
+                            }
+                        </div>
+
+                        <div class="fw-bold mb-2">@q.QuestionText</div>
+
+                        @switch (q.QuestionType)
+                        {
+                            case QuestionType.ShortText:
+                            case QuestionType.FillInBlank:
+                            {
+                                <input type="text" name="q_@q.Id" value="@prevAns?.AnswerText" class="form-control"
+                                       placeholder="@(q.QuestionType == QuestionType.FillInBlank ? "Введите пропущенное слово или термин..." : "Введите краткий ответ...")" required />
+                                break;
+                            }
+                            case QuestionType.SingleChoice:
+                            {
+                                var options = (q.OptionsJson ?? string.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries);
+                                foreach (var opt in options)
+                                {
+                                    var isChecked = string.Equals(prevAns?.AnswerText, opt.Trim(), StringComparison.OrdinalIgnoreCase);
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="radio" name="q_@q.Id" value="@opt.Trim()" id="q_@(q.Id)_@opt.GetHashCode()" checked="@isChecked" required />
+                                        <label class="form-check-label" for="q_@(q.Id)_@opt.GetHashCode()">@opt.Trim()</label>
+                                    </div>
+                                }
+                                break;
+                            }
+                            case QuestionType.MultipleChoice:
+                            {
+                                var options = (q.OptionsJson ?? string.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries);
+                                var prevSelected = (prevAns?.AnswerText ?? string.Empty)
+                                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(s => s.Trim())
+                                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                                foreach (var opt in options)
+                                {
+                                    var isChecked = prevSelected.Contains(opt.Trim());
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" name="q_@q.Id" value="@opt.Trim()" id="q_@(q.Id)_@opt.GetHashCode()" checked="@isChecked" />
+                                        <label class="form-check-label" for="q_@(q.Id)_@opt.GetHashCode()">@opt.Trim()</label>
+                                    </div>
+                                }
+                                break;
+                            }
+                            case QuestionType.Matching:
+                            {
+                                var pairs = StudyRoom.Pages.Student.LectureModel.ParseMatchingPairs(q.OptionsJson);
+                                var rightOptions = pairs.Select(p => p.Right).OrderBy(x => x).ToList();
+                                var prevPairs = StudyRoom.Pages.Student.LectureModel.ParseMatchingPairs(prevAns?.AnswerText)
+                                    .ToDictionary(p => p.Left, p => p.Right, StringComparer.OrdinalIgnoreCase);
+
+                                <div class="row g-2">
+                                    @for (int i = 0; i < pairs.Count; i++)
+                                    {
+                                        var left = pairs[i].Left;
+                                        prevPairs.TryGetValue(left, out var selectedRight);
+                                        <div class="col-md-6">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text fw-semibold">@left</span>
+                                                <select name="q_@(q.Id)_match_@i" class="form-select" required>
+                                                    <option value="">-- Выберите соответствие --</option>
+                                                    @foreach (var rOpt in rightOptions)
+                                                    {
+                                                        <option value="@rOpt" selected="@(string.Equals(selectedRight, rOpt, StringComparison.OrdinalIgnoreCase))">@rOpt</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                                break;
+                            }
+                            case QuestionType.ExtendedText:
+                            {
+                                <textarea name="q_@q.Id" class="form-control" rows="3" placeholder="Введите развёрнутый ответ для проверки преподавателем..." required>@prevAns?.AnswerText</textarea>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>Этот вопрос проверяется преподавателем вручную.
+                                    @if (Model.Lecture.WaitForTeacherApproval)
+                                    {
+                                        <span>До подтверждения ответа преподавателем следующая лекция остаётся закрытой.</span>
+                                    }
+                                </div>
+                                break;
+                            }
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(prevAns?.TeacherComment))
+                        {
+                            <div class="alert alert-info py-2 px-3 mt-2 mb-0 small">
+                                <strong>Комментарий преподавателя:</strong> @prevAns.TeacherComment
+                            </div>
+                        }
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-send-check me-2"></i>Отправить и проверить ответы на контрольные вопросы
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+<!-- 3. Итоговый тест по лекции -->
+@if (Model.LectureTest != null)
+{
+    var usedAttempts = Model.LectureTestAttempts.Count;
+    var bestAttempt = Model.LectureTestAttempts.OrderByDescending(a => a.ScorePercentage).FirstOrDefault();
+    var hasPassed = Model.LectureTestAttempts.Any(a => a.Status == TestAttemptStatus.Passed && a.ScorePercentage >= Model.LectureTest.PassingPercentage);
+    var remainingAttempts = Math.Max(0, Model.AllowedAttempts - usedAttempts);
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-patch-check-fill me-2"></i>3. Итоговое тестирование: @Model.LectureTest.Title</h5>
+            @if (hasPassed)
+            {
+                <span class="badge bg-light text-success fw-bold">Тест успешно сдан!</span>
+            }
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3 align-items-center mb-3">
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap gap-3">
+                        <div><span class="text-muted small">Вопросов:</span> <strong>@Model.LectureTest.Questions.Count</strong></div>
+                        <div><span class="text-muted small">Проходной порог:</span> <strong>@Model.LectureTest.PassingPercentage%</strong></div>
+                        <div><span class="text-muted small">Использовано попыток:</span> <strong>@usedAttempts из @Model.AllowedAttempts</strong></div>
+                        @if (Model.LectureTest.TimeLimitMinutes.HasValue)
+                        {
+                            <div><span class="text-muted small">Лимит времени:</span> <strong>@Model.LectureTest.TimeLimitMinutes мин.</strong></div>
+                        }
+                        @if (bestAttempt != null)
+                        {
+                            <div>
+                                <span class="text-muted small">Лучший результат:</span>
+                                <strong class="@(hasPassed ? "text-success" : "text-danger")">@bestAttempt.ScorePercentage% (@bestAttempt.CorrectCount/@bestAttempt.TotalQuestions)</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    @if (remainingAttempts > 0 || User.IsTeacher())
+                    {
+                        <a asp-page="/Student/Test" asp-route-lectureId="@Model.Lecture.Id" class="btn btn-success btn-lg">
+                            <i class="bi bi-play-circle-fill me-1"></i>@(usedAttempts == 0 ? "Начать тестирование" : "Пройти тест повторно")
+                        </a>
+                    }
+                    else
+                    {
+                        <button class="btn btn-secondary" disabled>Лимит попыток исчерпан (обратитесь к преподавателю)</button>
+                    }
+                </div>
+            </div>
+
+            @if (Model.LectureTestAttempts.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Дата попытки</th>
+                                <th>Правильных ответов</th>
+                                <th>Процент</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var att in Model.LectureTestAttempts)
+                            {
+                                <tr>
+                                    <td>@att.AttemptDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                                    <td>@att.CorrectCount из @att.TotalQuestions</td>
+                                    <td><strong>@att.ScorePercentage%</strong></td>
+                                    <td>
+                                        @if (att.Status == TestAttemptStatus.Passed)
+                                        {
+                                            <span class="badge bg-success">Сдан (порог выполнен)</span>
+                                        }
+                                        else if (att.Status == TestAttemptStatus.Expired)
+                                        {
+                                            <span class="badge bg-warning text-dark">Превышен лимит времени</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Ниже проходного балла (@Model.LectureTest.PassingPercentage%)</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<!-- Навигация между лекциями -->
+<div class="d-flex flex-wrap justify-content-between align-items-center p-3 bg-white rounded shadow-sm border">
+    <div>
+        @if (Model.PreviousLecture != null)
+        {
+            <a asp-page="/Student/Lecture" asp-route-id="@Model.PreviousLecture.Id" class="btn btn-outline-secondary">
+                &larr; Предыдущая: @Model.PreviousLecture.Title
+            </a>
+        }
+        else
+        {
+            <a asp-page="/Student/Discipline" asp-route-id="@Model.Lecture.Topic.DisciplineId" class="btn btn-outline-secondary">
+                &larr; К оглавлению дисциплины
+            </a>
+        }
+    </div>
+    <div>
+        @if (Model.NextLecture != null)
+        {
+            @if (Model.IsNextLectureUnlocked)
+            {
+                <a asp-page="/Student/Lecture" asp-route-id="@Model.NextLecture.Id" class="btn btn-primary fw-semibold">
+                    Следующая лекция: @Model.NextLecture.Title &rarr;
+                </a>
+            }
+            else
+            {
+                <span class="text-muted small me-2">
+                    <i class="bi bi-lock-fill text-danger me-1"></i>Следующая лекция («@Model.NextLecture.Title») откроется после выполнения условий текущей лекции
+                </span>
+            }
+        }
+        else
+        {
+            <span class="badge bg-success py-2 px-3">Это заключительная лекция курса</span>
+        }
+    </div>
+</div>

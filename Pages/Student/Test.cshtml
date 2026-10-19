@@ -1,0 +1,147 @@
+@page
+@model StudyRoom.Pages.Student.TestModel
+@{
+    ViewData["Title"] = Model.Test.Title;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <span class="badge bg-secondary mb-1">@Model.Lecture.Title</span>
+        <h3 class="fw-bold mb-0">@Model.Test.Title</h3>
+    </div>
+    @if (Model.Test.TimeLimitMinutes.HasValue)
+    {
+        <div class="card border-warning bg-warning-subtle px-3 py-2 shadow-sm">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-stopwatch-fill fs-4 text-dark"></i>
+                <div>
+                    <div class="small text-muted">Оставшееся время:</div>
+                    <div id="testTimerDisplay" class="fw-bold fs-5 font-monospace text-dark">
+                        @(Model.Test.TimeLimitMinutes.Value.ToString("D2")):00
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="alert alert-light border shadow-sm d-flex flex-wrap gap-4 small mb-4">
+    <div><strong>Проходной порог:</strong> @Model.Test.PassingPercentage%</div>
+    <div><strong>Попытка:</strong> @(Model.UsedAttempts + 1) из @Model.AllowedAttempts</div>
+    <div><strong>Перемешивание вопросов:</strong> @(Model.Test.ShuffleQuestions ? "Включено" : "Выключено")</div>
+</div>
+
+<form method="post" id="testForm" asp-route-lectureId="@Model.Lecture.Id">
+    <input type="hidden" name="startedAtUnixSeconds" value="@Model.StartedAtUnixSeconds" />
+
+    @for (int idx = 0; idx < Model.DisplayedQuestions.Count; idx++)
+    {
+        var q = Model.DisplayedQuestions[idx];
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-primary">Вопрос @(idx + 1) из @Model.DisplayedQuestions.Count</span>
+                <span class="badge bg-secondary">@q.QuestionType.GetQuestionTypeDisplayName()</span>
+            </div>
+            <div class="card-body">
+                <p class="fw-semibold mb-3">@q.QuestionText</p>
+
+                @switch (q.QuestionType)
+                {
+                    case QuestionType.SingleChoice:
+                    {
+                        foreach (var opt in q.AnswerOptions)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="tq_@q.Id" value="@opt.OptionText" id="opt_@opt.Id" required />
+                                <label class="form-check-label" for="opt_@opt.Id">@opt.OptionText</label>
+                            </div>
+                        }
+                        break;
+                    }
+                    case QuestionType.MultipleChoice:
+                    {
+                        foreach (var opt in q.AnswerOptions)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="tq_@q.Id" value="@opt.OptionText" id="opt_@opt.Id" />
+                                <label class="form-check-label" for="opt_@opt.Id">@opt.OptionText</label>
+                            </div>
+                        }
+                        break;
+                    }
+                    case QuestionType.ShortText:
+                    case QuestionType.FillInBlank:
+                    {
+                        <input type="text" name="tq_@q.Id" class="form-control" placeholder="Введите ваш ответ..." required />
+                        break;
+                    }
+                    case QuestionType.Matching:
+                    {
+                        var rightChoices = q.AnswerOptions
+                            .Select(o => o.MatchPair ?? string.Empty)
+                            .Where(s => !string.IsNullOrEmpty(s))
+                            .OrderBy(s => s)
+                            .ToList();
+
+                        <div class="row g-2">
+                            @foreach (var opt in q.AnswerOptions)
+                            {
+                                <div class="col-md-6">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text fw-semibold">@opt.OptionText</span>
+                                        <select name="tq_@(q.Id)_match_@opt.Id" class="form-select" required>
+                                            <option value="">-- Выберите пару --</option>
+                                            @foreach (var r in rightChoices)
+                                            {
+                                                <option value="@r">@r</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        break;
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <a asp-page="/Student/Lecture" asp-route-id="@Model.Lecture.Id" class="btn btn-outline-secondary">
+            Отмена и возврат к лекции
+        </a>
+        <button type="submit" class="btn btn-success btn-lg px-5">
+            <i class="bi bi-check2-circle me-2"></i>Завершить тест и отправить ответы
+        </button>
+    </div>
+</form>
+
+@if (Model.Test.TimeLimitMinutes.HasValue)
+{
+    @section Scripts {
+        <script>
+            (function () {
+                let remainingSeconds = @(Model.Test.TimeLimitMinutes.Value * 60);
+                const display = document.getElementById('testTimerDisplay');
+                const form = document.getElementById('testForm');
+
+                const interval = setInterval(function () {
+                    remainingSeconds--;
+                    if (remainingSeconds <= 0) {
+                        clearInterval(interval);
+                        display.textContent = "00:00";
+                        form.submit();
+                        return;
+                    }
+                    const mins = Math.floor(remainingSeconds / 60);
+                    const secs = remainingSeconds % 60;
+                    display.textContent = String(mins).padStart(2, '0') + ":" + String(secs).padStart(2, '0');
+                    if (remainingSeconds <= 60) {
+                        display.classList.add('text-danger');
+                    }
+                }, 1000);
+            })();
+        </script>
+    }
+}
