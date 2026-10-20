@@ -205,3 +205,4 @@ public class ReportsModel : PageModel
         return RedirectToPage(new { DisciplineId = disciplineId, GroupId = groupId });
     }
 }
+

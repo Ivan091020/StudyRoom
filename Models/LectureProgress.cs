@@ -34,3 +34,4 @@ public class LectureProgress
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
+

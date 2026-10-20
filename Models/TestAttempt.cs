@@ -37,3 +37,4 @@ public class TestAttempt
     /// </summary>
     public string? DetailsJson { get; set; }
 }
+

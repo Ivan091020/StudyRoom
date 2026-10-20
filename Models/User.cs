@@ -28,3 +28,4 @@ public class User
     public ICollection<TestAttempt> TestAttempts { get; set; } = new List<TestAttempt>();
     public ICollection<LectureProgress> LectureProgresses { get; set; } = new List<LectureProgress>();
 }
+

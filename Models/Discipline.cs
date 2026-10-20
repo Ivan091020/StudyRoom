@@ -18,3 +18,4 @@ public class Discipline
 
     public ICollection<Topic> Topics { get; set; } = new List<Topic>();
 }
+

@@ -65,3 +65,4 @@ dotnet .\publish\StudyRoom.dll --urls "http://0.0.0.0:5050;https://0.0.0.0:5051"
    New-NetFirewallRule -DisplayName "StudyRoom Web App (TCP 5050)" -Direction Inbound -LocalPort 5050 -Protocol TCP -Action Allow
    ```
 3. Студенты учебного класса подключаются со своих рабочих мест через браузер по адресу `http://192.168.1.100:5050`, проходят регистрацию либо входят под выданными логинами. Прямой доступ студентов к СУБД PostgreSQL и файловой системе сервера исключён.
+

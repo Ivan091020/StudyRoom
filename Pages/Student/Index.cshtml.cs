@@ -80,3 +80,4 @@ public class IndexModel : PageModel
             .ToListAsync();
     }
 }
+

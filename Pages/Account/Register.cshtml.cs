@@ -150,3 +150,4 @@ public class RegisterModel : PageModel
             .ToListAsync();
     }
 }
+

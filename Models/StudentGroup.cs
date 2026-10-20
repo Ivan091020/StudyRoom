@@ -16,3 +16,4 @@ public class StudentGroup
 
     public ICollection<GroupMembership> GroupMemberships { get; set; } = new List<GroupMembership>();
 }
+

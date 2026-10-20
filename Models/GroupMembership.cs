@@ -22,3 +22,4 @@ public class GroupMembership
 
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }
+

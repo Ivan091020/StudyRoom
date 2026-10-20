@@ -182,3 +182,4 @@ public class MaterialStorageService
     private static string EscapePdfText(string input)
         => input.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
 }
+

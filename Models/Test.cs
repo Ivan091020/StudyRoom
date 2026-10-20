@@ -33,3 +33,4 @@ public class Test
     public ICollection<TestQuestion> Questions { get; set; } = new List<TestQuestion>();
     public ICollection<TestAttempt> TestAttempts { get; set; } = new List<TestAttempt>();
 }
+

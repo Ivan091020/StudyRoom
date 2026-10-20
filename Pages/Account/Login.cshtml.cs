@@ -112,3 +112,4 @@ public class LoginModel : PageModel
         return RedirectToPage("/Student/Index");
     }
 }
+

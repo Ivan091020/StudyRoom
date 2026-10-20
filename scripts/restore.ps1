@@ -30,3 +30,4 @@ if (Test-Path $materialsZip) {
 }
 
 Write-Host "Restore completed successfully!" -ForegroundColor Green
+

@@ -275,3 +275,4 @@ public class LectureEditModel : PageModel
         return RedirectToPage(new { id = lectureId });
     }
 }
+

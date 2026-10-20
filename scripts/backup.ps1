@@ -30,3 +30,4 @@ if (Test-Path $materialsPath) {
 
 Write-Host "Backup completed successfully: $targetFolder" -ForegroundColor Green
 Get-ChildItem $targetFolder | Select-Object Name, Length, LastWriteTime
+

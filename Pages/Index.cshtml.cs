@@ -32,3 +32,4 @@ public class IndexModel : PageModel
         TotalTests = await _db.Tests.CountAsync();
     }
 }
+

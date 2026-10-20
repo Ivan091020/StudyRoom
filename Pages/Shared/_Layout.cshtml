@@ -108,7 +108,7 @@
         </nav>
     </header>
 
-    <div class="container my-4 flex-grow-1">
+    <div class="container main-container my-4 flex-grow-1 pb-5">
         @if (TempData["SuccessMessage"] is string successMsg)
         {
             <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
@@ -124,7 +124,7 @@
             </div>
         }
 
-        <main role="main" class="pb-3">
+        <main role="main" class="pb-5">
             @RenderBody()
         </main>
     </div>
@@ -147,3 +147,4 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+

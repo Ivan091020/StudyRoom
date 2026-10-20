@@ -37,3 +37,4 @@ public class ControlQuestion
 
     public ICollection<StudentAnswer> StudentAnswers { get; set; } = new List<StudentAnswer>();
 }
+

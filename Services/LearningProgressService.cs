@@ -427,3 +427,4 @@ public class LearningProgressService
         return (isCompleted, !isCompleted && waitingTeacherReview, hasAnyActivity);
     }
 }
+

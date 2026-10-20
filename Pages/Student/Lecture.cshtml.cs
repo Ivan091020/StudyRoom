@@ -237,3 +237,4 @@ public class LectureModel : PageModel
         return Page();
     }
 }
+

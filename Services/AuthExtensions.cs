@@ -57,3 +57,4 @@ public static class AuthExtensions
         _ => "bg-secondary"
     };
 }
+

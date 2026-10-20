@@ -57,3 +57,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\restore.ps1 -BackupFolderPath
    - Проверить корректность строки подключения `DefaultConnection` в `appsettings.json`.
 3. **Утеря или повреждение файла учебного материала:**
    - Заменить файл через страницу редактирования лекции `/Teacher/LectureEdit?id={id}` либо восстановить архив `Materials.zip` с помощью `scripts/restore.ps1`.
+

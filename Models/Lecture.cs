@@ -59,3 +59,4 @@ public class Lecture
     public ICollection<Test> Tests { get; set; } = new List<Test>();
     public ICollection<LectureProgress> LectureProgresses { get; set; } = new List<LectureProgress>();
 }
+

@@ -19,3 +19,4 @@ public class LogoutModel : PageModel
         return RedirectToPage("/Account/Login");
     }
 }
+

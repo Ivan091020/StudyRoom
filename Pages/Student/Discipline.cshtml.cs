@@ -67,3 +67,4 @@ public class DisciplineModel : PageModel
         return Page();
     }
 }
+

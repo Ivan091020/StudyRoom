@@ -22,3 +22,4 @@ public class Topic
 
     public ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
 }
+

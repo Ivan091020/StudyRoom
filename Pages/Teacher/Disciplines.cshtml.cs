@@ -177,3 +177,4 @@ public class DisciplinesModel : PageModel
         return RedirectToPage();
     }
 }
+
