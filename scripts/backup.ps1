@@ -16,7 +16,7 @@ $pgDumpExe = Join-Path $PgBinPath "pg_dump.exe"
 $sqlDumpFile = Join-Path $targetFolder "$DbName.sql"
 
 Write-Host "[1/2] Backing up PostgreSQL database ($DbName)..." -ForegroundColor Cyan
-& $pgDumpExe -h localhost -p 5432 -U $DbUser -d $DbName -F p -f $sqlDumpFile
+& $pgDumpExe -h localhost -p 5432 -U $DbUser -d $DbName --clean --if-exists -F p -f $sqlDumpFile
 if ($LASTEXITCODE -ne 0) {
     throw "pg_dump failed with exit code: $LASTEXITCODE"
 }

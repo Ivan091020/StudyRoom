@@ -113,6 +113,24 @@ public class DisciplinesModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostUpdateTopicAsync(int id, string title, int orderIndex)
+    {
+        var topic = await _db.Topics.FindAsync(id);
+        if (topic == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            topic.Title = title.Trim();
+        }
+        if (orderIndex > 0)
+        {
+            topic.OrderIndex = orderIndex;
+        }
+        await _db.SaveChangesAsync();
+        TempData["SuccessMessage"] = $"Тема «{topic.Title}» обновлена.";
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostDeleteTopicAsync(int id)
     {
         var topic = await _db.Topics.FindAsync(id);

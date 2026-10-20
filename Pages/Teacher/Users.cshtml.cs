@@ -135,5 +135,49 @@ public class UsersModel : PageModel
         TempData["SuccessMessage"] = "Привязка студента к учебной группе обновлена.";
         return RedirectToPage();
     }
+
+    public async Task<IActionResult> OnPostResetPasswordAsync(int userId, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            TempData["ErrorMessage"] = "Новый пароль должен содержать не менее 6 символов.";
+            return RedirectToPage();
+        }
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TeacherId = User.GetUserId(),
+            TargetStudentId = user.Id,
+            ActionType = "ResetPassword",
+            Description = $"Обновлён пароль учётной записи {user.FullName} ({user.Login})."
+        });
+        await _db.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = $"Пароль пользователя {user.FullName} успешно обновлён.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteUserAsync(int userId)
+    {
+        if (userId == User.GetUserId())
+        {
+            TempData["ErrorMessage"] = "Нельзя удалить собственную учётную запись преподавателя.";
+            return RedirectToPage();
+        }
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user != null)
+        {
+            var name = user.FullName;
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Учётная запись «{name}» удалена.";
+        }
+        return RedirectToPage();
+    }
 }
 

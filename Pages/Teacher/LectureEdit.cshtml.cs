@@ -25,6 +25,10 @@ public class LectureEditModel : PageModel
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
+        if (id <= 0 && int.TryParse(Request.Query["id"], out var queryId))
+        {
+            id = queryId;
+        }
         return await LoadLectureDataAsync(id);
     }
 

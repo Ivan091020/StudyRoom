@@ -101,15 +101,16 @@ app.MapGet("/Materials/{mode}/{lectureId:int}", async (
 
     var downloadName = lecture.MaterialOriginalFileName ?? Path.GetFileName(fullPath);
     var contentType = storageService.GetContentType(downloadName);
+    var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
     if (string.Equals(mode, "Download", StringComparison.OrdinalIgnoreCase))
     {
-        return Results.File(fullPath, contentType, fileDownloadName: downloadName);
+        return Results.File(fileStream, contentType, fileDownloadName: downloadName);
     }
 
     // Режим View — открытие непосредственно в браузере (inline)
     httpContext.Response.Headers.Append("Content-Disposition", $"inline; filename=\"{Uri.EscapeDataString(downloadName)}\"");
-    return Results.File(fullPath, contentType);
+    return Results.File(fileStream, contentType);
 }).RequireAuthorization();
 
 app.MapRazorPages()

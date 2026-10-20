@@ -15,5 +15,10 @@ public class AccessDeniedModel : PageModel
     {
         HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
     }
+
+    public void OnPost()
+    {
+        HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+    }
 }
 
