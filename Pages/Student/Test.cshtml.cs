@@ -21,6 +21,15 @@ public class TestModel : PageModel
         _progressService = progressService;
     }
 
+    [BindProperty(SupportsGet = true)]
+    public int? LectureId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? Id { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? TestId { get; set; }
+
     public Lecture Lecture { get; set; } = null!;
     public Test Test { get; set; } = null!;
     public List<TestQuestion> DisplayedQuestions { get; set; } = new();
@@ -28,12 +37,55 @@ public class TestModel : PageModel
     public int AllowedAttempts { get; set; }
     public long StartedAtUnixSeconds { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(int lectureId)
+    private async Task<int> ResolveLectureIdAsync(int? lectureId = null, int? id = null, int? testId = null)
     {
+        int resolved = lectureId ?? id ?? LectureId ?? Id ?? 0;
+
+        if (resolved <= 0 && int.TryParse(Request.Query["lectureId"], out var qLectureId) && qLectureId > 0)
+            resolved = qLectureId;
+        if (resolved <= 0 && int.TryParse(Request.Query["id"], out var qId) && qId > 0)
+            resolved = qId;
+
+        if (resolved <= 0 && Request.HasFormContentType)
+        {
+            if (int.TryParse(Request.Form["lectureId"], out var fLectureId) && fLectureId > 0)
+                resolved = fLectureId;
+            else if (int.TryParse(Request.Form["id"], out var fId) && fId > 0)
+                resolved = fId;
+        }
+
+        if (resolved <= 0)
+        {
+            int tId = testId ?? TestId ?? 0;
+            if (tId <= 0 && int.TryParse(Request.Query["testId"], out var qTestId))
+                tId = qTestId;
+            if (tId <= 0 && Request.HasFormContentType && int.TryParse(Request.Form["testId"], out var fTestId))
+                tId = fTestId;
+
+            if (tId > 0)
+            {
+                var testEntity = await _db.Tests.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tId);
+                if (testEntity != null)
+                    resolved = testEntity.LectureId;
+            }
+        }
+
+        return resolved;
+    }
+
+    public async Task<IActionResult> OnGetAsync(int? lectureId = null, int? id = null, int? testId = null)
+    {
+        var resolvedLectureId = await ResolveLectureIdAsync(lectureId, id, testId);
+        if (resolvedLectureId <= 0)
+        {
+            TempData["ErrorMessage"] = "Не указан идентификатор лекции для прохождения теста.";
+            return RedirectToPage("/Student/Index");
+        }
+
         var userId = User.GetUserId();
         if (!User.IsTeacher())
         {
-            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, lectureId);
+            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, resolvedLectureId);
             if (!access.Allowed)
             {
                 return RedirectToPage("/Account/AccessDenied", new { Reason = access.DenialReason });
@@ -46,21 +98,26 @@ public class TestModel : PageModel
             .Include(l => l.Tests)
             .ThenInclude(t => t.Questions)
             .ThenInclude(q => q.AnswerOptions)
-            .FirstOrDefaultAsync(l => l.Id == lectureId);
+            .FirstOrDefaultAsync(l => l.Id == resolvedLectureId);
 
-        if (lecture == null) return NotFound();
+        if (lecture == null)
+        {
+            TempData["ErrorMessage"] = "Запрашиваемая лекция не найдена.";
+            return RedirectToPage("/Student/Index");
+        }
+
         var test = lecture.Tests.FirstOrDefault();
         if (test == null)
         {
             TempData["ErrorMessage"] = "Для данной лекции тест ещё не создан.";
-            return RedirectToPage("/Student/Lecture", new { id = lectureId });
+            return RedirectToPage("/Student/Lecture", new { id = resolvedLectureId });
         }
 
         Lecture = lecture;
         Test = test;
 
         var progress = await _db.LectureProgresses
-            .FirstOrDefaultAsync(lp => lp.StudentId == userId && lp.LectureId == lectureId);
+            .FirstOrDefaultAsync(lp => lp.StudentId == userId && lp.LectureId == resolvedLectureId);
 
         AllowedAttempts = test.MaxAttempts + (progress?.ExtraAttemptsGranted ?? 0);
         UsedAttempts = await _db.TestAttempts.CountAsync(ta => ta.StudentId == userId && ta.TestId == test.Id);
@@ -68,7 +125,7 @@ public class TestModel : PageModel
         if (UsedAttempts >= AllowedAttempts && !User.IsTeacher())
         {
             TempData["ErrorMessage"] = $"Вы исчерпали доступное количество попыток ({AllowedAttempts}). Обратитесь к преподавателю для добавления попыток.";
-            return RedirectToPage("/Student/Lecture", new { id = lectureId });
+            return RedirectToPage("/Student/Lecture", new { id = resolvedLectureId });
         }
 
         var questions = test.Questions.OrderBy(q => q.OrderIndex).ThenBy(q => q.Id).ToList();
@@ -90,12 +147,22 @@ public class TestModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostAsync(int lectureId, long startedAtUnixSeconds)
+    public Task<IActionResult> OnPostSubmitTestAsync(int? lectureId = null, int? id = null, int? testId = null, long? startedAtUnixSeconds = null)
+        => OnPostAsync(lectureId, id, testId, startedAtUnixSeconds);
+
+    public async Task<IActionResult> OnPostAsync(int? lectureId = null, int? id = null, int? testId = null, long? startedAtUnixSeconds = null)
     {
+        var resolvedLectureId = await ResolveLectureIdAsync(lectureId, id, testId);
+        if (resolvedLectureId <= 0)
+        {
+            TempData["ErrorMessage"] = "Не удалось определить лекцию при отправке теста.";
+            return RedirectToPage("/Student/Index");
+        }
+
         var userId = User.GetUserId();
         if (!User.IsTeacher())
         {
-            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, lectureId);
+            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, resolvedLectureId);
             if (!access.Allowed)
             {
                 return RedirectToPage("/Account/AccessDenied", new { Reason = access.DenialReason });
@@ -107,26 +174,41 @@ public class TestModel : PageModel
             .Include(l => l.Tests)
             .ThenInclude(t => t.Questions)
             .ThenInclude(q => q.AnswerOptions)
-            .FirstOrDefaultAsync(l => l.Id == lectureId);
+            .FirstOrDefaultAsync(l => l.Id == resolvedLectureId);
 
-        if (lecture == null) return NotFound();
+        if (lecture == null)
+        {
+            TempData["ErrorMessage"] = "Запрашиваемая лекция не найдена.";
+            return RedirectToPage("/Student/Index");
+        }
+
         var test = lecture.Tests.FirstOrDefault();
-        if (test == null) return NotFound();
+        if (test == null)
+        {
+            TempData["ErrorMessage"] = "Тест для данной лекции не найден.";
+            return RedirectToPage("/Student/Lecture", new { id = resolvedLectureId });
+        }
 
         var progress = await _db.LectureProgresses
-            .FirstOrDefaultAsync(lp => lp.StudentId == userId && lp.LectureId == lectureId);
+            .FirstOrDefaultAsync(lp => lp.StudentId == userId && lp.LectureId == resolvedLectureId);
 
         var allowed = test.MaxAttempts + (progress?.ExtraAttemptsGranted ?? 0);
         var used = await _db.TestAttempts.CountAsync(ta => ta.StudentId == userId && ta.TestId == test.Id);
         if (used >= allowed && !User.IsTeacher())
         {
             TempData["ErrorMessage"] = "Лимит попыток прохождения теста исчерпан.";
-            return RedirectToPage("/Student/Lecture", new { id = lectureId });
+            return RedirectToPage("/Student/Lecture", new { id = resolvedLectureId });
+        }
+
+        long resolvedStartedUnix = startedAtUnixSeconds ?? 0;
+        if (resolvedStartedUnix <= 0 && Request.HasFormContentType && long.TryParse(Request.Form["startedAtUnixSeconds"], out var fStarted))
+        {
+            resolvedStartedUnix = fStarted;
         }
 
         var nowUtc = DateTimeOffset.UtcNow;
-        var startedUtc = startedAtUnixSeconds > 0
-            ? DateTimeOffset.FromUnixTimeSeconds(startedAtUnixSeconds)
+        var startedUtc = resolvedStartedUnix > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(resolvedStartedUnix)
             : nowUtc;
 
         bool isExpired = false;
@@ -189,7 +271,7 @@ public class TestModel : PageModel
         await _db.SaveChangesAsync();
 
         var summary = await _progressService.SynchronizeAndGetDisciplineProgressAsync(userId, lecture.Topic.DisciplineId);
-        var updatedLectureStatus = summary.LectureStatuses.GetValueOrDefault(lectureId, LectureStatus.InProgress);
+        var updatedLectureStatus = summary.LectureStatuses.GetValueOrDefault(resolvedLectureId, LectureStatus.InProgress);
 
         if (status == TestAttemptStatus.Passed)
         {
@@ -211,7 +293,7 @@ public class TestModel : PageModel
             TempData["ErrorMessage"] = $"Тест не сдан: набрано {scorePercentage}% ({correctCount} из {totalQuestions}) при необходимом пороге {test.PassingPercentage}%. Следующая лекция остаётся закрытой.";
         }
 
-        return RedirectToPage("/Student/Lecture", new { id = lectureId });
+        return RedirectToPage("/Student/Lecture", new { id = resolvedLectureId });
     }
 
     private string ExtractTestAnswerFromForm(TestQuestion q)

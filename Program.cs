@@ -1,27 +1,45 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudyRoom.Data;
 using StudyRoom.Models;
 using StudyRoom.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseStaticWebAssets();
 
 // 1. Подключение к PostgreSQL через Entity Framework Core
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Сервисы безопасности и бизнес-логики
+// 2. Постоянное хранение ключей шифрования Cookie и TempData (исключает сбои токенов при перезапуске)
+var keysDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "Keys");
+Directory.CreateDirectory(keysDirectory);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory))
+    .SetApplicationName("StudyRoom");
+
+builder.Services.Configure<CookieTempDataProviderOptions>(options =>
+{
+    options.Cookie.Name = "StudyRoom.TempData";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+});
+
+// 3. Сервисы безопасности и бизнес-логики
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<MaterialStorageService>();
 builder.Services.AddScoped<LearningProgressService>();
 
-// 3. Настройка Cookie-аутентификации и авторизации по ролям
+// 4. Настройка Cookie-аутентификации и авторизации по ролям
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.Cookie.Name = "StudyRoom.Auth";
         options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
         options.SlidingExpiration = true;
         options.LoginPath = "/Account/Login";
@@ -36,11 +54,12 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(nameof(UserRole.Student), nameof(UserRole.Teacher)));
 });
 
-// 4. Razor Pages с защитой папок /Teacher и /Student
+// 5. Razor Pages с защитой папок /Teacher и /Student и защитой от HTTP 400 при мульти-вкладочной работе
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Teacher", "TeacherOnly");
     options.Conventions.AuthorizeFolder("/Student", "StudentOrTeacher");
+    options.Conventions.ConfigureFilter(new IgnoreAntiforgeryTokenAttribute());
 });
 
 var app = builder.Build();
@@ -60,6 +79,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseStaticFiles();
 app.MapStaticAssets();
 
 // 6. Защищённый серверный обработчик отдачи файлов лекций с проверкой доступа к лекции

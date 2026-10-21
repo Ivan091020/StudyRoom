@@ -109,6 +109,11 @@ public class ReportsModel : PageModel
         }
     }
 
+    public IActionResult OnPost()
+    {
+        return RedirectToPage(new { DisciplineId, GroupId });
+    }
+
     /// <summary>
     /// Ручное принудительное открытие лекции конкретному студенту с записью в журнал событий (AuditLogs).
     /// </summary>
@@ -117,7 +122,10 @@ public class ReportsModel : PageModel
         var student = await _db.Users.FindAsync(studentId);
         var lecture = await _db.Lectures.FindAsync(lectureId);
         if (student == null || lecture == null)
-            return NotFound();
+        {
+            TempData["ErrorMessage"] = "Студент или лекция не найдены.";
+            return RedirectToPage(new { DisciplineId = disciplineId, GroupId = groupId });
+        }
 
         var lp = await _db.LectureProgresses
             .FirstOrDefaultAsync(x => x.StudentId == studentId && x.LectureId == lectureId);
@@ -166,7 +174,10 @@ public class ReportsModel : PageModel
         var student = await _db.Users.FindAsync(studentId);
         var lecture = await _db.Lectures.FindAsync(lectureId);
         if (student == null || lecture == null)
-            return NotFound();
+        {
+            TempData["ErrorMessage"] = "Студент или лекция не найдены.";
+            return RedirectToPage(new { DisciplineId = disciplineId, GroupId = groupId });
+        }
 
         var lp = await _db.LectureProgresses
             .FirstOrDefaultAsync(x => x.StudentId == studentId && x.LectureId == lectureId);

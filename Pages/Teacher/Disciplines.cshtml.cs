@@ -33,6 +33,11 @@ public class DisciplinesModel : PageModel
             .ToListAsync();
     }
 
+    public IActionResult OnPost()
+    {
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostCreateDisciplineAsync(string title, string? description)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -63,7 +68,11 @@ public class DisciplinesModel : PageModel
     public async Task<IActionResult> OnPostUpdateDisciplineAsync(int id, string title, string? description)
     {
         var discipline = await _db.Disciplines.FindAsync(id);
-        if (discipline == null) return NotFound();
+        if (discipline == null)
+        {
+            TempData["ErrorMessage"] = "Дисциплина не найдена.";
+            return RedirectToPage();
+        }
 
         discipline.Title = title.Trim();
         discipline.Description = (description ?? string.Empty).Trim();
@@ -116,7 +125,11 @@ public class DisciplinesModel : PageModel
     public async Task<IActionResult> OnPostUpdateTopicAsync(int id, string title, int orderIndex)
     {
         var topic = await _db.Topics.FindAsync(id);
-        if (topic == null) return NotFound();
+        if (topic == null)
+        {
+            TempData["ErrorMessage"] = "Тема не найдена.";
+            return RedirectToPage();
+        }
 
         if (!string.IsNullOrWhiteSpace(title))
         {

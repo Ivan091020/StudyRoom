@@ -32,6 +32,10 @@
 </div>
 
 <form method="post" id="testForm" asp-route-lectureId="@Model.Lecture.Id">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
+    <input type="hidden" name="id" value="@Model.Lecture.Id" />
+    <input type="hidden" name="testId" value="@Model.Test.Id" />
     <input type="hidden" name="startedAtUnixSeconds" value="@Model.StartedAtUnixSeconds" />
 
     @for (int idx = 0; idx < Model.DisplayedQuestions.Count; idx++)
@@ -100,6 +104,11 @@
                                 </div>
                             }
                         </div>
+                        break;
+                    }
+                    case QuestionType.ExtendedText:
+                    {
+                        <textarea name="tq_@q.Id" class="form-control" rows="3" placeholder="Введите развёрнутый ответ..." required></textarea>
                         break;
                     }
                 }

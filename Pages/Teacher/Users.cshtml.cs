@@ -39,6 +39,11 @@ public class UsersModel : PageModel
             .ToListAsync();
     }
 
+    public IActionResult OnPost()
+    {
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostCreateGroupAsync(string name, string? description)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -145,7 +150,11 @@ public class UsersModel : PageModel
         }
 
         var user = await _db.Users.FindAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+        {
+            TempData["ErrorMessage"] = "Пользователь не найден.";
+            return RedirectToPage();
+        }
 
         user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
         _db.AuditLogs.Add(new AuditLog

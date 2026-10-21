@@ -26,20 +26,35 @@ public class DisciplineModel : PageModel
     public Dictionary<int, double?> BestTestScoreByLecture { get; set; } = new();
     public Dictionary<int, int> AttemptsCountByLecture { get; set; } = new();
 
-    public async Task<IActionResult> OnGetAsync(int id)
+    public async Task<IActionResult> OnGetAsync(int? id = null, int? disciplineId = null)
     {
-        var discipline = await _db.Disciplines
-            .Include(d => d.Topics.OrderBy(t => t.OrderIndex).ThenBy(t => t.Id))
-            .ThenInclude(t => t.Lectures.OrderBy(l => l.OrderIndex).ThenBy(l => l.Id))
-            .ThenInclude(l => l.ControlQuestions)
-            .Include(d => d.Topics)
-            .ThenInclude(t => t.Lectures)
-            .ThenInclude(l => l.Tests)
-            .FirstOrDefaultAsync(d => d.Id == id);
+        int resolvedId = id ?? disciplineId ?? 0;
+        if (resolvedId <= 0 && int.TryParse(Request.Query["id"], out var qId)) resolvedId = qId;
+        if (resolvedId <= 0 && int.TryParse(Request.Query["disciplineId"], out var qDiscId)) resolvedId = qDiscId;
+
+        var discipline = resolvedId > 0
+            ? await _db.Disciplines
+                .Include(d => d.Topics.OrderBy(t => t.OrderIndex).ThenBy(t => t.Id))
+                .ThenInclude(t => t.Lectures.OrderBy(l => l.OrderIndex).ThenBy(l => l.Id))
+                .ThenInclude(l => l.ControlQuestions)
+                .Include(d => d.Topics)
+                .ThenInclude(t => t.Lectures)
+                .ThenInclude(l => l.Tests)
+                .FirstOrDefaultAsync(d => d.Id == resolvedId)
+            : await _db.Disciplines
+                .Include(d => d.Topics.OrderBy(t => t.OrderIndex).ThenBy(t => t.Id))
+                .ThenInclude(t => t.Lectures.OrderBy(l => l.OrderIndex).ThenBy(l => l.Id))
+                .ThenInclude(l => l.ControlQuestions)
+                .Include(d => d.Topics)
+                .ThenInclude(t => t.Lectures)
+                .ThenInclude(l => l.Tests)
+                .OrderBy(d => d.Id)
+                .FirstOrDefaultAsync();
 
         if (discipline == null)
         {
-            return NotFound();
+            TempData["ErrorMessage"] = "Запрашиваемая дисциплина не найдена.";
+            return RedirectToPage("/Student/Index");
         }
 
         Discipline = discipline;
@@ -65,6 +80,11 @@ public class DisciplineModel : PageModel
         }
 
         return Page();
+    }
+
+    public IActionResult OnPost(int? id = null, int? disciplineId = null)
+    {
+        return RedirectToPage(new { id = id ?? disciplineId });
     }
 }
 

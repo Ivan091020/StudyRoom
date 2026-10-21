@@ -92,6 +92,9 @@
         else
         {
             <form method="post" asp-page-handler="SubmitControlAnswers" asp-route-id="@Model.Lecture.Id">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Lecture.Id" />
+                <input type="hidden" name="lectureId" value="@Model.Lecture.Id" />
                 @foreach (var q in Model.Lecture.ControlQuestions)
                 {
                     Model.StudentAnswersByQuestion.TryGetValue(q.Id, out var prevAns);

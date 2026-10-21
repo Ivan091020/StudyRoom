@@ -46,6 +46,11 @@ public class ReviewsModel : PageModel
             .ToListAsync();
     }
 
+    public IActionResult OnPost()
+    {
+        return RedirectToPage(new { ShowAll });
+    }
+
     public async Task<IActionResult> OnPostReviewAnswerAsync(int answerId, bool approve, string? teacherComment)
     {
         var answer = await _db.StudentAnswers
@@ -56,7 +61,10 @@ public class ReviewsModel : PageModel
             .FirstOrDefaultAsync(sa => sa.Id == answerId);
 
         if (answer == null)
-            return NotFound();
+        {
+            TempData["ErrorMessage"] = "Ответ студента не найден.";
+            return RedirectToPage(new { ShowAll });
+        }
 
         answer.IsApproved = approve;
         answer.CheckedByTeacher = true;

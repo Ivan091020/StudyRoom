@@ -23,13 +23,20 @@ public class LectureEditModel : PageModel
     public Lecture Lecture { get; set; } = null!;
     public Test CurrentTest { get; set; } = null!;
 
-    public async Task<IActionResult> OnGetAsync(int id)
+    public async Task<IActionResult> OnGetAsync(int? id = null, int? lectureId = null)
     {
-        if (id <= 0 && int.TryParse(Request.Query["id"], out var queryId))
-        {
-            id = queryId;
-        }
-        return await LoadLectureDataAsync(id);
+        int resolvedId = id ?? lectureId ?? 0;
+        if (resolvedId <= 0 && int.TryParse(Request.Query["id"], out var queryId))
+            resolvedId = queryId;
+        if (resolvedId <= 0 && int.TryParse(Request.Query["lectureId"], out var queryLecId))
+            resolvedId = queryLecId;
+
+        return await LoadLectureDataAsync(resolvedId);
+    }
+
+    public IActionResult OnPost(int? id = null, int? lectureId = null)
+    {
+        return RedirectToPage(new { id = id ?? lectureId ?? 1 });
     }
 
     private async Task<IActionResult> LoadLectureDataAsync(int id)
@@ -45,7 +52,8 @@ public class LectureEditModel : PageModel
 
         if (lecture == null)
         {
-            return NotFound();
+            TempData["ErrorMessage"] = "Запрашиваемая лекция не найдена.";
+            return RedirectToPage("/Teacher/Disciplines");
         }
 
         Lecture = lecture;
@@ -81,7 +89,11 @@ public class LectureEditModel : PageModel
         IFormFile? materialFile)
     {
         var lecture = await _db.Lectures.FindAsync(id);
-        if (lecture == null) return NotFound();
+        if (lecture == null)
+        {
+            TempData["ErrorMessage"] = "Лекция не найдена.";
+            return RedirectToPage("/Teacher/Disciplines");
+        }
 
         lecture.Title = title.Trim();
         lecture.Description = (description ?? string.Empty).Trim();
@@ -173,7 +185,11 @@ public class LectureEditModel : PageModel
         bool requireRetryOnFail)
     {
         var test = await _db.Tests.FindAsync(testId);
-        if (test == null) return NotFound();
+        if (test == null)
+        {
+            TempData["ErrorMessage"] = "Тест не найден.";
+            return RedirectToPage(new { id = lectureId });
+        }
 
         test.Title = string.IsNullOrWhiteSpace(title) ? "Итоговый тест" : title.Trim();
         test.PassingPercentage = Math.Clamp(passingPercentage, 1, 100);

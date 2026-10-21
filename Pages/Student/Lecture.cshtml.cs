@@ -20,6 +20,12 @@ public class LectureModel : PageModel
         _progressService = progressService;
     }
 
+    [BindProperty(SupportsGet = true)]
+    public int? Id { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? LectureId { get; set; }
+
     public Lecture Lecture { get; set; } = null!;
     public LectureStatus CurrentStatus { get; set; }
     public Dictionary<int, StudentAnswer> StudentAnswersByQuestion { get; set; } = new();
@@ -30,17 +36,51 @@ public class LectureModel : PageModel
     public Lecture? NextLecture { get; set; }
     public bool IsNextLectureUnlocked { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(int id)
+    private int ResolveLectureId(int? id = null, int? lectureId = null)
     {
-        return await LoadAndAuthorizeLectureAsync(id);
+        int resolved = id ?? lectureId ?? Id ?? LectureId ?? 0;
+        if (resolved <= 0 && int.TryParse(Request.Query["id"], out var qId) && qId > 0)
+            resolved = qId;
+        if (resolved <= 0 && int.TryParse(Request.Query["lectureId"], out var qLectureId) && qLectureId > 0)
+            resolved = qLectureId;
+
+        if (resolved <= 0 && Request.HasFormContentType)
+        {
+            if (int.TryParse(Request.Form["id"], out var fId) && fId > 0)
+                resolved = fId;
+            else if (int.TryParse(Request.Form["lectureId"], out var fLectureId) && fLectureId > 0)
+                resolved = fLectureId;
+        }
+        return resolved;
     }
 
-    public async Task<IActionResult> OnPostSubmitControlAnswersAsync(int id)
+    public async Task<IActionResult> OnGetAsync(int? id = null, int? lectureId = null)
     {
+        var resolvedId = ResolveLectureId(id, lectureId);
+        if (resolvedId <= 0)
+        {
+            TempData["ErrorMessage"] = "Не указан идентификатор лекции.";
+            return RedirectToPage("/Student/Index");
+        }
+        return await LoadAndAuthorizeLectureAsync(resolvedId);
+    }
+
+    public Task<IActionResult> OnPostAsync(int? id = null, int? lectureId = null)
+        => OnPostSubmitControlAnswersAsync(id, lectureId);
+
+    public async Task<IActionResult> OnPostSubmitControlAnswersAsync(int? id = null, int? lectureId = null)
+    {
+        var resolvedId = ResolveLectureId(id, lectureId);
+        if (resolvedId <= 0)
+        {
+            TempData["ErrorMessage"] = "Не указан идентификатор лекции при отправке ответов.";
+            return RedirectToPage("/Student/Index");
+        }
+
         var userId = User.GetUserId();
         if (!User.IsTeacher())
         {
-            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, id);
+            var access = await _progressService.CheckStudentAccessToLectureAsync(userId, resolvedId);
             if (!access.Allowed)
             {
                 return RedirectToPage("/Account/AccessDenied", new { Reason = access.DenialReason });
@@ -50,13 +90,16 @@ public class LectureModel : PageModel
         var lecture = await _db.Lectures
             .Include(l => l.Topic)
             .Include(l => l.ControlQuestions.OrderBy(q => q.OrderIndex).ThenBy(q => q.Id))
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == resolvedId);
 
         if (lecture == null)
-            return NotFound();
+        {
+            TempData["ErrorMessage"] = "Запрашиваемая лекция не найдена.";
+            return RedirectToPage("/Student/Index");
+        }
 
         var existingAnswers = await _db.StudentAnswers
-            .Where(sa => sa.StudentId == userId && sa.Question.LectureId == id)
+            .Where(sa => sa.StudentId == userId && sa.Question.LectureId == resolvedId)
             .ToDictionaryAsync(sa => sa.QuestionId);
 
         int autoApprovedCount = 0;
@@ -125,7 +168,7 @@ public class LectureModel : PageModel
             TempData["ErrorMessage"] = $"Зачтено ответов: {autoApprovedCount}. Требуют исправления: {failedCount}. Проверьте выделенные вопросы ниже.";
         }
 
-        return RedirectToPage(new { id });
+        return RedirectToPage(new { id = resolvedId });
     }
 
     private string ExtractAnswerFromForm(ControlQuestion q)
@@ -199,7 +242,8 @@ public class LectureModel : PageModel
 
         if (lecture == null)
         {
-            return NotFound();
+            TempData["ErrorMessage"] = "Запрашиваемая лекция не найдена.";
+            return RedirectToPage("/Student/Index");
         }
 
         Lecture = lecture;
